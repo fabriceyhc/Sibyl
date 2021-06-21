@@ -1,0 +1,21 @@
+emoji_translate
+patternfork-nosql
+spacy
+datasets==1.6.1
+transformers==4.2.0
+scikit-learn
+seaborn
+randaugment
+umap
+torch==1.8.1+cu102
+
+## dev
+# jupyter
+# vaderSentiment
+
+# pip install -U pip setuptools wheel
+# pip install -U spacy
+# python -m spacy download en_core_web_trf
+
+# conda install pytorch torchvision torchaudio cudatoolkit=10.2 -c pytorch
+# conda install pytorch torchvision torchaudio cpuonly -c pytorch
