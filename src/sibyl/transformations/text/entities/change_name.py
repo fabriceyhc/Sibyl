@@ -1,7 +1,7 @@
 from ..abstract_transformation import *
+from ..data.persons import PERSON_NAMES
 import numpy as np
 import en_core_web_sm
-from ..data.persons import PERSON_NAMES
 
 class ChangeName(AbstractTransformation):
     """

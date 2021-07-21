@@ -1,28 +1,28 @@
-from transformations.text.contraction.expand_contractions import ExpandContractions
-from transformations.text.contraction.contract_contractions import ContractContractions
-from transformations.text.emoji.emojify import Emojify, AddPositiveEmoji, AddNegativeEmoji, AddNeutralEmoji
-from transformations.text.emoji.demojify import Demojify, RemovePositiveEmoji, RemoveNegativeEmoji, RemoveNeutralEmoji
-from transformations.text.negation.remove_negation import RemoveNegation
-from transformations.text.negation.add_negation import AddNegation
-from transformations.text.contraction.expand_contractions import ExpandContractions
-from transformations.text.contraction.contract_contractions import ContractContractions
-from transformations.text.word_swap.change_number import ChangeNumber
-from transformations.text.word_swap.change_synse import ChangeSynonym, ChangeAntonym, ChangeHyponym, ChangeHypernym
-from transformations.text.word_swap.word_deletion import WordDeletion
-from transformations.text.word_swap.homoglyph_swap import HomoglyphSwap
-from transformations.text.word_swap.random_swap import RandomSwap
-from transformations.text.insertion.random_insertion import RandomInsertion
-from transformations.text.insertion.sentiment_phrase import InsertSentimentPhrase, InsertPositivePhrase, InsertNegativePhrase
-from transformations.text.links.add_sentiment_link import AddSentimentLink, AddPositiveLink, AddNegativeLink
-from transformations.text.links.import_link_text import ImportLinkText
-from transformations.text.entities.change_location import ChangeLocation
-from transformations.text.entities.change_name import ChangeName
-from transformations.text.typos.char_delete import RandomCharDel
-from transformations.text.typos.char_insert import RandomCharInsert
-from transformations.text.typos.char_substitute import RandomCharSubst
-from transformations.text.typos.char_swap import RandomCharSwap
-from transformations.text.typos.char_swap_qwerty import RandomSwapQwerty 
-from transformations.text.mixture.text_mix import TextMix, SentMix, WordMix
+from .transformations.text.contraction.expand_contractions import ExpandContractions
+from .transformations.text.contraction.contract_contractions import ContractContractions
+from .transformations.text.emoji.emojify import Emojify, AddPositiveEmoji, AddNegativeEmoji, AddNeutralEmoji
+from .transformations.text.emoji.demojify import Demojify, RemovePositiveEmoji, RemoveNegativeEmoji, RemoveNeutralEmoji
+from .transformations.text.negation.remove_negation import RemoveNegation
+from .transformations.text.negation.add_negation import AddNegation
+from .transformations.text.contraction.expand_contractions import ExpandContractions
+from .transformations.text.contraction.contract_contractions import ContractContractions
+from .transformations.text.word_swap.change_number import ChangeNumber
+from .transformations.text.word_swap.change_synse import ChangeSynonym, ChangeAntonym, ChangeHyponym, ChangeHypernym
+from .transformations.text.word_swap.word_deletion import WordDeletion
+from .transformations.text.word_swap.homoglyph_swap import HomoglyphSwap
+from .transformations.text.word_swap.random_swap import RandomSwap
+from .transformations.text.insertion.random_insertion import RandomInsertion
+from .transformations.text.insertion.sentiment_phrase import InsertSentimentPhrase, InsertPositivePhrase, InsertNegativePhrase
+from .transformations.text.links.add_sentiment_link import AddSentimentLink, AddPositiveLink, AddNegativeLink
+from .transformations.text.links.import_link_text import ImportLinkText
+from .transformations.text.entities.change_location import ChangeLocation
+from .transformations.text.entities.change_name import ChangeName
+from .transformations.text.typos.char_delete import RandomCharDel
+from .transformations.text.typos.char_insert import RandomCharInsert
+from .transformations.text.typos.char_substitute import RandomCharSubst
+from .transformations.text.typos.char_swap import RandomCharSwap
+from .transformations.text.typos.char_swap_qwerty import RandomSwapQwerty 
+from .transformations.text.mixture.text_mix import TextMix, SentMix, WordMix
 
 TRANSFORMATIONS = [
     ExpandContractions,
@@ -68,8 +68,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from utils import *
-from transformations.utils import *
+from .utils import *
+from .transformations.utils import *
 
 def init_transforms(task_type=None, tran_type=None, label_type=None, meta=True):
     df_all = []
@@ -295,7 +295,7 @@ def transform_dataset_INVSIB(
 
 class SibylCollator:
     """
-        tokenize_fn       : tokenizer 
+        tokenize_fn       : tokenizer, if none provided, just returns inputs and targets
         transform         : a particular initialized transform (e.g. TextMix()) to apply to the inputs (overrides random sampling)
         num_sampled_INV   : number of uniformly sampled INV transforms to apply upon the inputs 
         num_sampled_SIB=1 : number of uniformly sampled SIB transforms to apply upon the inputs 
@@ -308,9 +308,13 @@ class SibylCollator:
         target_prob       : probability of targeting mixture mutations for particular classes
         reduce_mixed      : label previously mixed classes to be a new-hard label class
         num_classes       : number of classes, used for one-hot-encoding
+        return_tensors    : return type of the labels, only supports numpy (np) and pytorch (pt), 
+                            the return type of other batch content is controlled by tokenize_fn
+        return_text       : the tokenize_fn typically replaces the raw text with the tokenized representation,
+                            setting this value to true adds back the raw text for additional use
     """
     def __init__(self, 
-                 tokenize_fn, 
+                 tokenize_fn=None, 
                  transform=None, 
                  num_sampled_INV=0, 
                  num_sampled_SIB=0, 
@@ -322,7 +326,9 @@ class SibylCollator:
                  target_pairs=[], 
                  target_prob=1.0, 
                  reduce_mixed=False,
-                 num_classes=2):
+                 num_classes=2,
+                 return_tensors='pt',
+                 return_text=True):
         
         self.tokenize_fn = tokenize_fn
         self.transform = transform
@@ -337,6 +343,8 @@ class SibylCollator:
         self.target_prob = target_prob
         self.reduce_mixed = reduce_mixed
         self.num_classes = num_classes
+        self.return_tensors = return_tensors
+        self.return_text = return_text
 
         self.transforms_df = init_transforms(task_type=task_type, tran_type=tran_type, label_type=label_type, meta=True)
 
@@ -417,19 +425,29 @@ class SibylCollator:
                 text = new_text   
                 labels = new_labels
 
-        labels = np.array(labels)  
+        text = [x[0] if type(x) == list else x for x in text]
+        labels = [y.squeeze().tolist() if type(y) == np.ndarray else y for y in labels]
+        
         if self.reduce_mixed and len(labels.shape) >= 2:
-            labels = torch.tensor([np.argmax(y) if i == 1 else self.num_classes for (i, y) in zip(np.count_nonzero(labels, axis=-1), labels)], dtype=torch.long)
-        else:
-            labels = torch.tensor(labels)
+            labels = [np.argmax(y) if i == 1 else self.num_classes for (i, y) in zip(np.count_nonzero(labels, axis=-1), labels)]
 
-        if len(labels.shape) == 1:
-            labels = labels.long()
+        if self.return_tensors == 'np':
+            labels = np.array(labels)
+        if self.return_tensors == 'pt':
+            labels = torch.tensor(labels)
+            if len(labels.shape) == 1:
+                labels = labels.long()
 
         if self.one_hot and len(labels.shape) == 1 and not self.reduce_mixed:
             labels = torch.nn.functional.one_hot(labels, num_classes=self.num_classes)
-        batch = self.tokenize_fn(text)
-        batch['labels'] = labels
-        batch.pop('idx', None)
-        batch.pop('label', None)
+
+        if self.tokenize_fn:
+            batch = self.tokenize_fn(text)
+            batch['labels'] = labels
+            batch.pop('idx', None)
+            batch.pop('label', None)
+            if self.return_text:
+                batch['text'] = text
+        else:
+            batch = (text, labels)
         return batch

@@ -1,7 +1,7 @@
 from ..abstract_transformation import *
+from ..data.locations import NAMED_ENTITIES
 import numpy as np
 import en_core_web_sm
-from ..data.locations import NAMED_ENTITIES
 
 class ChangeLocation(AbstractTransformation):
     """
