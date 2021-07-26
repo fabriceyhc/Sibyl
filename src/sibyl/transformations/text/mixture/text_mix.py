@@ -143,12 +143,39 @@ class TextMix(AbstractBatchTransformation):
         return ret
 
     def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.tran_types = {
-            'task_name': ['sentiment', 'topic'],
-            'tran_type': ['SIB', 'SIB'],
-            'label_type': ['soft', 'soft']
-        }
-        df = self._get_tran_types(self.tran_types, task_name, tran_type, label_type)
+        self.task_config = [
+            {
+                'task_name' : 'sentiment',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'topic',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'grammaticality',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'similarity',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'entailment',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'qa',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+        ]
+        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
         return df
 
 class SentMix(AbstractBatchTransformation):
@@ -216,12 +243,39 @@ class SentMix(AbstractBatchTransformation):
         return ret
 
     def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.tran_types = {
-            'task_name': ['sentiment', 'topic'],
-            'tran_type': ['SIB', 'SIB'],
-            'label_type': ['soft', 'soft']
-        }
-        df = self._get_tran_types(self.tran_types, task_name, tran_type, label_type)
+        self.task_config = [
+            {
+                'task_name' : 'sentiment',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'topic',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'grammaticality',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'similarity',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'entailment',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'qa',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+        ]
+        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
         return df
 
 class WordMix(AbstractBatchTransformation):
@@ -289,12 +343,39 @@ class WordMix(AbstractBatchTransformation):
         return ret
 
     def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.tran_types = {
-            'task_name': ['sentiment', 'topic'],
-            'tran_type': ['SIB', 'SIB'],
-            'label_type': ['soft', 'soft']
-        }
-        df = self._get_tran_types(self.tran_types, task_name, tran_type, label_type)
+        self.task_config = [
+            {
+                'task_name' : 'sentiment',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'topic',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'grammaticality',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'similarity',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'entailment',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+            {
+                'task_name' : 'qa',
+                'tran_type' : 'SIB',
+                'label_type' : 'soft'
+            },
+        ]
+        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
         return df
 
 # Helper functions

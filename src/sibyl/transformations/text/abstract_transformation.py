@@ -90,7 +90,7 @@ class AbstractTransformation(ABC):
                 - label_type : str
                     whether to use soft or hard labels
         """
-        df = pd.DataFrame.from_dict(tran_types)
+        df = pd.DataFrame(tran_types)
         if task_name is not None:
             task_names = set(df.task_name.tolist())
             if task_name not in task_names:

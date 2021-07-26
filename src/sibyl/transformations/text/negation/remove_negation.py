@@ -109,12 +109,39 @@ class RemoveNegation(AbstractTransformation):
         return ret
 
     def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.tran_types = {
-            'task_name': ['sentiment', 'topic'],
-            'tran_type': ['SIB', 'INV'],
-            'label_type': ['hard', 'hard']
-        }
-        df = self._get_tran_types(self.tran_types, task_name, tran_type, label_type)
+        self.task_config = [
+            {
+                'task_name' : 'sentiment',
+                'tran_type' : 'INV',
+                'label_type' : 'hard'
+            },
+            {
+                'task_name' : 'topic',
+                'tran_type' : 'INV',
+                'label_type' : 'hard'
+            },
+            {
+                'task_name' : 'grammaticality',
+                'tran_type' : 'INV',
+                'label_type' : 'hard'
+            },
+            {
+                'task_name' : 'similarity',
+                'tran_type' : 'INV',
+                'label_type' : 'hard'
+            },
+            {
+                'task_name' : 'entailment',
+                'tran_type' : 'INV',
+                'label_type' : 'hard'
+            },
+            {
+                'task_name' : 'qa',
+                'tran_type' : 'SIB',
+                'label_type' : 'hard'
+            },
+        ]
+        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
         return df
         
     def transform_Xy(self, X, y):

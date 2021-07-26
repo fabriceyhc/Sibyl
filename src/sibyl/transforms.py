@@ -298,7 +298,7 @@ class SibylCollator:
         tokenize_fn       : tokenizer, if none provided, just returns inputs and targets
         transform         : a particular initialized transform (e.g. TextMix()) to apply to the inputs (overrides random sampling)
         num_sampled_INV   : number of uniformly sampled INV transforms to apply upon the inputs 
-        num_sampled_SIB=1 : number of uniformly sampled SIB transforms to apply upon the inputs 
+        num_sampled_SIB   : number of uniformly sampled SIB transforms to apply upon the inputs 
         task_type         : filter on transformations for task type [topic, sentiment]
         tran_type         : filter on transformations for tran type [INV, SIB]
         label_type        : filter on transformations for task type [hard, soft]
@@ -321,7 +321,7 @@ class SibylCollator:
                  task_type=None, 
                  tran_type=None, 
                  label_type=None,
-                 one_hot=True,
+                 one_hot=False,
                  transform_prob=1.0, 
                  target_pairs=[], 
                  target_prob=1.0, 
@@ -346,14 +346,10 @@ class SibylCollator:
         self.return_tensors = return_tensors
         self.return_text = return_text
 
-        self.transforms_df = init_transforms(task_type=task_type, tran_type=tran_type, label_type=label_type, meta=True)
-
-        if (not transform and num_sampled_INV == 0 and num_sampled_SIB == 0) or (len(self.transforms_df) == 0):
-            raise ValueError("Must specify a particular transform or a value for num_sampled_INV / num_sampled_SIB, otherwise no transforms will be applied.")
-
         if self.transform:
             print("SibylCollator initialized with {}".format(transform.__class__.__name__))
         else: 
+            self.transforms_df = init_transforms(task_type=task_type, tran_type=tran_type, label_type=label_type, meta=True)
             print("SibylCollator initialized with num_sampled_INV={} and num_sampled_SIB={}".format(num_sampled_INV, num_sampled_SIB))
 
         
@@ -361,8 +357,6 @@ class SibylCollator:
         text = [x['text'] for x in batch]
         labels = [x['label'] for x in batch]
         if torch.rand(1) < self.transform_prob:
-
-
             if self.transform:
                 text, labels = self.transform(
                     (text, labels), 
