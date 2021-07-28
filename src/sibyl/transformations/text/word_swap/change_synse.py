@@ -219,8 +219,8 @@ class ChangeAntonym(ChangeSynse):
             SentimentAnalysis(),
             TopicClassification(),
             Grammaticality(tran_type='SIB'),
-            Similarity(input_idx=[1,0], tran_type='INV'),
-            Similarity(input_idx=[0,1], tran_type='INV'),
+            Similarity(input_idx=[1,0], tran_type='SIB'),
+            Similarity(input_idx=[0,1], tran_type='SIB'),
             Similarity(input_idx=[1,1], tran_type='INV'),
             Entailment(input_idx=[1,0], tran_type='INV'),
             Entailment(input_idx=[0,1], tran_type='INV'),
@@ -268,6 +268,8 @@ class ChangeAntonym(ChangeSynse):
                     y_out = y
                 else:
                     y_out = invert_label(y, soften=soften)
+            elif task_config['task_name'] == 'similarity':
+                y_out = smooth_label(y, factor=0.5)
             else:
                y_out = invert_label(y, soften=soften)
         
@@ -283,8 +285,8 @@ class ChangeHyponym(ChangeSynse):
             SentimentAnalysis(),
             TopicClassification(),
             Grammaticality(tran_type='SIB'),
-            Similarity(input_idx=[1,0], tran_type='INV'),
-            Similarity(input_idx=[0,1], tran_type='INV'),
+            Similarity(input_idx=[1,0], tran_type='SIB'),
+            Similarity(input_idx=[0,1], tran_type='SIB'),
             Similarity(input_idx=[1,1], tran_type='INV'),
             Entailment(input_idx=[1,0], tran_type='INV'),
             Entailment(input_idx=[0,1], tran_type='INV'),
@@ -332,6 +334,8 @@ class ChangeHyponym(ChangeSynse):
                     y_out = y
                 else:
                     y_out = invert_label(y, soften=soften)
+            elif task_config['task_name'] == 'similarity':
+                y_out = smooth_label(y, factor=0.25)
             else:
                y_out = invert_label(y, soften=soften)
         
@@ -347,8 +351,8 @@ class ChangeHypernym(ChangeSynse):
             SentimentAnalysis(),
             TopicClassification(),
             Grammaticality(tran_type='SIB'),
-            Similarity(input_idx=[1,0], tran_type='INV'),
-            Similarity(input_idx=[0,1], tran_type='INV'),
+            Similarity(input_idx=[1,0], tran_type='SIB'),
+            Similarity(input_idx=[0,1], tran_type='SIB'),
             Similarity(input_idx=[1,1], tran_type='INV'),
             Entailment(input_idx=[1,0], tran_type='INV'),
             Entailment(input_idx=[0,1], tran_type='INV'),
@@ -396,6 +400,8 @@ class ChangeHypernym(ChangeSynse):
                     y_out = y
                 else:
                     y_out = invert_label(y, soften=soften)
+            elif task_config['task_name'] == 'similarity':
+                y_out = smooth_label(y, factor=0.25)
             else:
                y_out = invert_label(y, soften=soften)
         

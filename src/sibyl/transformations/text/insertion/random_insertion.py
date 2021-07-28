@@ -74,11 +74,13 @@ class RandomInsertion(AbstractTransformation):
         if task_config['tran_type'] == 'INV':
             y_out = y
         else:
+            soften = task_config['label_type'] == 'soft'
             if task_config['task_name'] == 'grammaticality':
-                soften = task_config['label_type'] == 'soft'
                 y_out = invert_label(y, soften=soften)
             elif task_config['task_name'] == 'similarity':
                 y_out = smooth_label(y, factor=0.5)
+            else:
+                y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
             return X_out, y_out, metadata
