@@ -22,9 +22,19 @@ class AddNegation(AbstractTransformation):
             the type of task you wish to transform the
             input towards
         """
-        
         self.nlp = en_core_web_sm.load()
         self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='SIB'),
+            Similarity(input_idx=[0,1], tran_type='SIB'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='SIB'),
+            Entailment(input_idx=[0,1], tran_type='SIB'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
+        ]
     
     def __call__(self, in_text):
         ans = self.wrapper(in_text)
