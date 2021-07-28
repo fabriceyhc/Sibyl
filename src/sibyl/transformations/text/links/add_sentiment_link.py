@@ -1,4 +1,5 @@
 from ..abstract_transformation import *
+from ..tasks import *
 import pandas as pd
 import os
 
@@ -10,7 +11,7 @@ class AddSentimentLink(AbstractTransformation):
     in routing structure. 
     """
 
-    def __init__(self, url=None, sentiment='positive', task=None,meta=False):
+    def __init__(self, url=None, sentiment='positive', return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
@@ -21,11 +22,12 @@ class AddSentimentLink(AbstractTransformation):
         sentiment : str
             Determines whether the constructed URL will 
             feature a positive or negative sentiment.
-        task : str
-            the type of task you wish to transform the
-            input towards
+        return_metadata : bool
+            whether or not to return metadata, e.g. 
+            whether a transform was successfully
+            applied or not
         """
-        self.task = task
+        
         self.url = url
         if self.url is None:
             self.url = 'https://www.dictionary.com/browse/'
@@ -41,20 +43,20 @@ class AddSentimentLink(AbstractTransformation):
         neg_path = os.path.join(cur_path, '../data/opinion-lexicon-English/negative-words.txt')
         self.pos_words = pd.read_csv(pos_path, skiprows=30, names=['word'], encoding='latin-1')
         self.neg_words = pd.read_csv(neg_path, skiprows=30, names=['word'], encoding='latin-1')
-        self.metadata = meta
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(tran_type='SIB'),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='SIB'),
+            Similarity(input_idx=[0,1], tran_type='SIB'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='INV'),
+            Entailment(input_idx=[0,1], tran_type='INV'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
+        ]
     
-    def __call__(self, string):
-        """
-        Appends a given / constructed URL to a string input.
-        Parameters
-        ----------
-        string : str
-            Input string
-        Returns
-        -------
-        ret
-            String with URL appended
-        """
+    def __call__(self, in_text):
         if self.default_url:
             if 'positive' in self.sentiment:
                 word = self.pos_words.sample(1)['word'].iloc[0]
@@ -63,197 +65,199 @@ class AddSentimentLink(AbstractTransformation):
             link = 'https://www.dictionary.com/browse/' + word
         else:
             link = self.url
-        ret = string + ' ' + link
-        assert type(ret) == str
-        meta = {'change': string!=ret}
-        if self.metadata: return ret, meta
-        return ret
+        out_text = in_text + ' ' + link
+        return out_text
 
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-        ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+    def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        if tran_type == 'SIB':
-            if self.sentiment == 'positive':
-                y_ = smooth_label(y, factor=0.5)
-            if self.sentiment == 'negative':
-                y_ = smooth_label(y, factor=0.5)
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
+            if task_config['task_name'] == 'similarity':
+                # hard code for now... :(
+                # 0 = dissimilar, 1 = similar
+                if y == 0:
+                    y_out = 0
+                else:
+                    y_out = smooth_label(y, factor=0.5)
+            elif task_config['task_name'] == 'sentiment':
+                if self.sentiment == 'positive':
+                    y_out = smooth_label(y, factor=0.5)
+                if self.sentiment == 'negative':
+                    y_out = smooth_label(y, factor=0.5)
+            else:
+                soften = task_config['label_type'] == 'soft'
+                y_out = invert_label(y, soften=soften)
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out
 
 class AddPositiveLink(AddSentimentLink):
-    def __init__(self, task=None, meta=False):
-        super().__init__(url=None, sentiment='positive', task=task, meta=meta)
-        self.task = task
-        self.metadata = meta
+    def __init__(self, return_metadata=False):
+        super().__init__(url=None, sentiment='positive', return_metadata=False)
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(tran_type='SIB'),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='SIB'),
+            Similarity(input_idx=[0,1], tran_type='SIB'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='INV'),
+            Entailment(input_idx=[0,1], tran_type='INV'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
+        ]
 
-    def __call__(self, string):
+    def __call__(self, in_text):
         if self.default_url:
             word = self.pos_words.sample(1)['word'].iloc[0]
             link = 'https://www.dictionary.com/browse/' + word
         else:
             link = self.url
-        ret = string + ' ' + link
-        assert type(ret) == str
-        meta = {'change': string!=ret}
-        if self.metadata: return ret, meta
-        return ret
+        out_text = in_text + ' ' + link
+        return out_text
 
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-        ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+    def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        if tran_type == 'SIB':
-            y_ = smooth_label(y, factor=0.5)
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
+            if task_config['task_name'] == 'similarity':
+                # hard code for now... :(
+                # 0 = dissimilar, 1 = similar
+                if y == 0:
+                    y_out = 0
+                else:
+                    y_out = smooth_label(y, factor=0.5)
+            elif task_config['task_name'] == 'sentiment':
+                y_out = smooth_label(y, factor=0.5)
+            else:
+                soften = task_config['label_type'] == 'soft'
+                y_out = invert_label(y, soften=soften)
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out
 
 class AddNegativeLink(AddSentimentLink):
-    def __init__(self, task=None, meta=False):
-        super().__init__(url=None, sentiment='negative', task=task, meta=meta)
-        self.task = task
-        self.metadata = meta
+    def __init__(self, return_metadata=False):
+        super().__init__(url=None, sentiment='negative', return_metadata=False)
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(tran_type='SIB'),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='SIB'),
+            Similarity(input_idx=[0,1], tran_type='SIB'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='INV'),
+            Entailment(input_idx=[0,1], tran_type='INV'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
+        ]
 
-    def __call__(self, string):
+    def __call__(self, in_text):
         if self.default_url:
             word = self.neg_words.sample(1)['word'].iloc[0]
             link = 'https://www.dictionary.com/browse/' + word
         else:
             link = self.url
-        ret = string + ' ' + link
-        assert type(ret) == str
-        meta = {'change': string!=ret}
-        if self.metadata: return ret, meta
-        return ret
+        out_text = in_text + ' ' + link
+        return out_text
 
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-        ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+    def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        if tran_type == 'SIB':
-            y_ = smooth_label(y, factor=0.5)
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
+            if task_config['task_name'] == 'similarity':
+                # hard code for now... :(
+                # 0 = dissimilar, 1 = similar
+                if y == 0:
+                    y_out = 0
+                else:
+                    y_out = smooth_label(y, factor=0.5)
+            elif task_config['task_name'] == 'sentiment':
+                y_out = smooth_label(y, factor=0.5)
+            else:
+                soften = task_config['label_type'] == 'soft'
+                y_out = invert_label(y, soften=soften)
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out

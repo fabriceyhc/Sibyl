@@ -31,14 +31,14 @@ class AbstractBatchTransformation(ABC):
 
 
     @abstractmethod
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
         """
-        See self._get_tran_types()
+        See self._get_task_configs()
         """
         pass
 
 
-    def _get_tran_types(self, tran_types, task_name=None, tran_type=None, label_type=None):
+    def _get_task_configs(self, tran_types, task_name=None, tran_type=None, label_type=None):
         """
         Defines the task and type of transformation (SIB or INV) 
         to determine the effect on the expected behavior (whether 

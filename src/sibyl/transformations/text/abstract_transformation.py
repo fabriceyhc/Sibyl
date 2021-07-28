@@ -17,49 +17,61 @@ class AbstractTransformation(ABC):
         pass
     
     @abstractmethod
-    def __call__(self, string):
+    def __call__(self, in_text):
         """
         Apply the transformation to a string input
 
         Parameters
         ----------
-        string : str
+        in_text : str
             the input string
         """
         pass
 
-    @abstractmethod
-    def transform_Xy(self, X, y):
+    @abstractmethod   
+    def transform_Xy(self, X, y, task_config):
         """
         Apply the transformation to a string input 
         and an int target label
 
         Parameters
         ----------
-        X : str
-            the input string
+        X : str or list[str]
+            the input string(s)
         y : int
             the target label
+        task_config : dict
+            the config to determine how exactly the 
+            transformation should be performed.
+            important for the particular label derivation.
 
         Returns
         ----------
-        X_ : str
-            the transformed string
-        y_ : int
+        X_out : str or list[str]
+            the transformed string(s)
+        y_out : int or list[float]
             if SIB ==> transformed target label
-            if INV ==> the original target label
+            if INV ==> original target label
+        metadata : dict
+            optional metadata from the transformation internals
         """
-        pass
+        if isinstance(X, str):
+            X = [X]
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
 
     @abstractmethod
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
         """
-        See self._get_tran_types()
+        See self._get_task_configs()
         """
         pass
 
 
-    def _get_tran_types(self, tran_types, task_name=None, tran_type=None, label_type=None):
+    def _get_task_configs(self, tran_types, task_name=None, tran_type=None, label_type=None):
         """
         Defines the task and type of transformation (SIB or INV) 
         to determine the effect on the expected behavior (whether 

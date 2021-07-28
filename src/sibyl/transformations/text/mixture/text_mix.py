@@ -1,5 +1,6 @@
 from ..abstract_batch_transformation import AbstractBatchTransformation
 from ...utils import one_hot_encode
+from ..tasks import *
 import numpy as np
 import pandas as pd
 import itertools
@@ -15,19 +16,30 @@ class TextMix(AbstractBatchTransformation):
     Concatenates two texts together and interpolates 
     the labels
     """
-    def __init__(self, task=None, meta=False):
+    def __init__(self, return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
 
         Parameters
         ----------
-        task : str
-            the type of task you wish to transform the
-            input towards
+        return_metadata : bool
+            whether or not to return metadata, e.g. 
+            whether a transform was successfully
+            applied or not
         """
-        self.task = task
-        self.metadata = meta
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(tran_type='SIB'),
+            TopicClassification(tran_type='SIB'),
+            Grammaticality(tran_type='SIB'),
+            # Similarity(input_idx=[1,0], tran_type='SIB'),
+            # Similarity(input_idx=[0,1], tran_type='SIB'),
+            # Similarity(input_idx=[1,1], tran_type='SIB'),
+            # Entailment(input_idx=[1,0], tran_type='SIB'),
+            # Entailment(input_idx=[0,1], tran_type='SIB'),
+            # Entailment(input_idx=[1,1], tran_type='SIB'),
+        ]
         
     def __call__(self, batch, target_pairs=[], target_prob=0, num_classes=2):
         """
@@ -134,48 +146,17 @@ class TextMix(AbstractBatchTransformation):
         new_data = [x.decode() if type(x) == bytes else str(x) for x in new_data]
         new_targets = np.concatenate(new_targets).tolist()
 
-        ret = (new_data, new_targets)
+        out_text = (new_data, new_targets)
 
         # metadata
-        if self.metadata: 
-            meta = {'change': True}
-            return ret, meta
-        return ret
+        if self.return_metadata: 
+            metadata = {'change': True}
+            return out_text, metadata
+        return out_text
 
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-        ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
 class SentMix(AbstractBatchTransformation):
@@ -183,19 +164,30 @@ class SentMix(AbstractBatchTransformation):
     Concatenates two texts together and then mixes the
     sentences in the new string. Interpolates the labels
     """
-    def __init__(self, task=None, meta=False):
+    def __init__(self, return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
 
         Parameters
         ----------
-        task : str
-            the type of task you wish to transform the
-            input towards
+        return_metadata : bool
+            whether or not to return metadata, e.g. 
+            whether a transform was successfully
+            applied or not
         """
-        self.task = task
-        self.metadata = meta
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(tran_type='SIB'),
+            TopicClassification(tran_type='SIB'),
+            Grammaticality(tran_type='SIB'),
+            # Similarity(input_idx=[1,0], tran_type='SIB'),
+            # Similarity(input_idx=[0,1], tran_type='SIB'),
+            # Similarity(input_idx=[1,1], tran_type='SIB'),
+            # Entailment(input_idx=[1,0], tran_type='SIB'),
+            # Entailment(input_idx=[0,1], tran_type='SIB'),
+            # Entailment(input_idx=[1,1], tran_type='SIB'),
+        ]
         
     def __call__(self, batch, target_pairs=[], target_prob=0, num_classes=2):
         """
@@ -234,48 +226,17 @@ class SentMix(AbstractBatchTransformation):
         sent_shuffle_ = np.vectorize(sent_shuffle)
         new_data = np.apply_along_axis(sent_shuffle_, 0, new_data).tolist()
 
-        ret = (new_data, new_targets)
+        out_text = (new_data, new_targets)
 
         # metadata
-        if self.metadata: 
-            meta = {'change': True}
-            return ret, meta
-        return ret
+        if self.return_metadata: 
+            metadata = {'change': True}
+            return out_text, metadata
+        return out_text
 
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-        ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
 class WordMix(AbstractBatchTransformation):
@@ -283,19 +244,30 @@ class WordMix(AbstractBatchTransformation):
     Concatenates two texts together and then mixes the
     words in the new string. Interpolates the labels
     """
-    def __init__(self, task=None, meta=False):
+    def __init__(self, return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
 
         Parameters
         ----------
-        task : str
-            the type of task you wish to transform the
-            input towards
+        return_metadata : bool
+            whether or not to return metadata, e.g. 
+            whether a transform was successfully
+            applied or not
         """
-        self.task = task
-        self.metadata = meta
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(tran_type='SIB'),
+            TopicClassification(tran_type='SIB'),
+            Grammaticality(tran_type='SIB'),
+            # Similarity(input_idx=[1,0], tran_type='SIB'),
+            # Similarity(input_idx=[0,1], tran_type='SIB'),
+            # Similarity(input_idx=[1,1], tran_type='SIB'),
+            # Entailment(input_idx=[1,0], tran_type='SIB'),
+            # Entailment(input_idx=[0,1], tran_type='SIB'),
+            # Entailment(input_idx=[1,1], tran_type='SIB'),
+        ]
         
     def __call__(self, batch, target_pairs=[], target_prob=0, num_classes=2):
         """
@@ -334,48 +306,17 @@ class WordMix(AbstractBatchTransformation):
         word_shuffle_ = np.vectorize(word_shuffle)
         new_data = np.apply_along_axis(word_shuffle_, 0, new_data).tolist()
 
-        ret = (new_data, new_targets)
+        out_text = (new_data, new_targets)
 
         # metadata
-        if self.metadata: 
-            meta = {'change': True}
-            return ret, meta
-        return ret
+        if self.return_metadata: 
+            metadata = {'change': True}
+            return out_text, metadata
+        return out_text
 
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-        ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
 # Helper functions
@@ -429,9 +370,9 @@ def concat_text(np_char1, np_char2):
     np_char1 = np_char1.astype(np.string_)
     np_char2 = np_char2.astype(np.string_)
     sep = np.full_like(np_char1, " ", dtype=np.string_)
-    ret = np.char.add(np_char1, sep)
-    ret = np.char.add(ret, np_char2)
-    return ret
+    out_text = np.char.add(np_char1, sep)
+    out_text = np.char.add(out_text, np_char2)
+    return out_text
 
 def sent_shuffle(string):
     X = nltk.tokenize.sent_tokenize(str(string))

@@ -14,7 +14,7 @@ def one_hot_encode(y, nb_classes):
 def soften_label(y, num_classes=None):
     if not num_classes:
         if isinstance(y, int):
-            num_classes = max(2, y)
+            num_classes = max(2, y + 1)
         elif isinstance(y, list):
             num_classes = len(y)
         elif isinstance(y, np.ndarray):
@@ -25,12 +25,12 @@ def soften_label(y, num_classes=None):
     return one_hot_encode(y, num_classes) 
 
 def invert_label(y, soften=False, num_classes=None):
-    if soften:
+    if not isinstance(y, np.ndarray):
         y = soften_label(y, num_classes)
-    if isinstance(y, np.ndarray):
-        return (1 - y) / (1 - y).sum()
-    else:
-        return int(not y)
+    y = y[::-1]
+    if not soften:
+        y = np.argmax(y)
+    return y
 
 def interpolate_label(y1, y2, x1=None, x2=None, num_classes=None, y_weights=None):
     if isinstance(y_weights, (list, tuple)):

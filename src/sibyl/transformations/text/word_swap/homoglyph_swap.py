@@ -1,4 +1,5 @@
 from ..abstract_transformation import *
+from ..tasks import *
 import random
 import numpy as np
 
@@ -7,7 +8,7 @@ class HomoglyphSwap(AbstractTransformation):
     Transforms an input by replacing its words with 
     visually similar words using homoglyph swaps.
     """
-    def __init__(self, change=0.25, task=None,meta=False):
+    def __init__(self, change=0.25, return_metadata=False):
         """
         Initializes the transformation
 
@@ -18,10 +19,25 @@ class HomoglyphSwap(AbstractTransformation):
             to possibly replace
             warning: it will check change % or charachters 
             for possible replacement
-        task : str
-            the type of task you wish to transform the
-            input towards
+        return_metadata : bool
+            whether or not to return metadata, e.g. 
+            whether a transform was successfully
+            applied or not
         """
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='INV'),
+            Similarity(input_idx=[0,1], tran_type='INV'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='INV'),
+            Entailment(input_idx=[0,1], tran_type='INV'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
+        ]
+        assert 0<=change<=1, "Change must be a probability between 0 and 1"
+        self.change = change
         self.homos = {
             "-": "˗",
             "9": "৭",
@@ -62,89 +78,68 @@ class HomoglyphSwap(AbstractTransformation):
             "y": "у",
             "z": "ᴢ",
         }
-        assert(0<=change<=1)
-        self.change = change
-        self.task = task
-        self.metadata = meta
     
-    def __call__(self, string):
+    def __call__(self, in_text):
         """
         Returns a list containing all possible words with 1 character
         replaced by a homoglyph.
 
         Parameters
         ----------
-        string : str
+        in_text : str
             The input string
 
         Returns
         ----------
-        ret : str
+        out_text : str
             The output with random words deleted
         """
 
-        # possibly = [k for k,j in enumerate(string) if j in self.homos]
-        # indices = list(np.random.choice(possibly, int(np.ceil(self.change*len(string))), replace=False) )
+        # possibly = [k for k,j in enumerate(in_text) if j in self.homos]
+        # indices = list(np.random.choice(possibly, int(np.ceil(self.change*len(in_text))), replace=False) )
                 # try, catch ValueError ? safer option
-        indices = np.random.choice(len(string), int(np.ceil(self.change*len(string))), replace=False)
+        indices = np.random.choice(len(in_text), int(np.ceil(self.change*len(in_text))), replace=False)
         
-        temp = string # deep copy apparently 
+        out_text = in_text # deep copy apparently 
         for i in sorted(indices):
-            if string[i] in self.homos:
-                repl_letter = self.homos[string[i]]
-                temp = temp[:i] + repl_letter + string[i+1:]
-        assert type(temp) == str
-        meta = {'change': string!=temp}
-        if self.metadata: return temp, meta
-        return temp
+            if in_text[i] in self.homos:
+                repl_letter = self.homos[in_text[i]]
+                out_text = out_text[:i] + repl_letter + in_text[i+1:]
+        return out_text
 
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-        ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+    def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        elif tran_type == 'SIB':
-            soften = label_type == 'soft'
-            y_ = invert_label(y, soften=soften)
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
+            soften = task_config['label_type'] == 'soft'
+            y_out = invert_label(y, soften=soften)
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out

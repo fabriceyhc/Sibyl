@@ -4,3 +4,4 @@ src/sibyl_tool.egg-info/
 *.gz
 *.whl
 
+*.pyc

@@ -1,4 +1,5 @@
 from ..abstract_transformation import *
+from ..tasks import *
 from ..data.persons import PERSON_NAMES
 import numpy as np
 import en_core_web_sm
@@ -8,7 +9,7 @@ class ChangeName(AbstractTransformation):
     Changes person names
     """
 
-    def __init__(self, first_only=False,last_only=False, task=None, meta=False):
+    def __init__(self, first_only=False, last_only=False, return_metadata=False):
         """
         Transforms an input by replacing names of recognized name entity.
 
@@ -18,38 +19,38 @@ class ChangeName(AbstractTransformation):
             Whether to change first name only
         last_only : boolean
             Whether to change last name only
-        task : str
-            the type of task you wish to transform the
-            input towards
+        return_metadata : bool
+            whether or not to return metadata, e.g. 
+            whether a transform was successfully
+            applied or not
         """
         if first_only & last_only:
             raise ValueError("first_only and last_only cannot both be true")
         self.first_only = first_only
         self.last_only = last_only
         self.nlp = en_core_web_sm.load()
-        self.task = task
-        self.metadata = meta
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='SIB'),
+            Similarity(input_idx=[0,1], tran_type='SIB'),
+            Similarity(input_idx=[1,1], tran_type='SIB'),
+            Entailment(input_idx=[1,0], tran_type='SIB'),
+            Entailment(input_idx=[0,1], tran_type='SIB'),
+            Entailment(input_idx=[1,1], tran_type='SIB'),
+        ]
     
-    def __call__(self, string):
-        """
-        Parameters
-        ----------
-        string : str
-            The input string
-
-        Returns
-        ----------
-        newString : str
-            The output with person names replaced
-        """
-        doc = self.nlp(string)
-        newString = string
+    def __call__(self, in_text):
+        doc = self.nlp(in_text)
+        out_text = in_text
         for e in reversed(doc.ents): #reversed to not modify the offsets of other entities when substituting
             start = e.start_char
             end = start + len(e.text)
             # print(e.text, "label is ", e.label_)
             if e.label_ in ('PERSON', 'ORG'):
-                name = e.text# newString[start:end]
+                name = e.text# out_text[start:end]
                 name = name.split()
                 if len(name) == 1 or self.first_only:
                     name[0] = self._get_firstname()
@@ -58,11 +59,8 @@ class ChangeName(AbstractTransformation):
                 elif len(name) > 1:
                     name[0], name[-1] =  self._get_firstname() , self._get_lastname()
                 name = " ".join(name)
-                newString = newString[:start] + name + newString[end:]
-        assert type(newString) == str
-        meta = {'change': newString!=string}
-        if self.metadata: return newString, meta
-        return newString
+                out_text = out_text[:start] + name + out_text[end:]
+        return out_text
 
     def _get_lastname(self):
         """Return a random last name."""
@@ -72,53 +70,47 @@ class ChangeName(AbstractTransformation):
         """Return a random first name."""
         return np.random.choice(PERSON_NAMES["first"])
 
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'SIB',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'SIB',
-                'label_type' : 'hard'
-            },
-        ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
         
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+    def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        elif tran_type == 'SIB':
-            soften = label_type == 'soft'
-            y_ = invert_label(y, soften=soften)
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
+            if task_config['task_name'] == 'entailment':
+                # hard coded for now... :(
+                # 0 = entailed, 1 = neutral, 2 = contradiction
+                if y == 0 or y == 2:
+                    y_out = 1
+                else: 
+                    y_out = y
+            else:
+                soften = task_config['label_type'] == 'soft'
+                y_out = invert_label(y, soften=soften)
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out

@@ -1,8 +1,9 @@
 from ..abstract_transformation import *
+from ..tasks import *
 from emoji_translate import Translator
 
 class Emojify(AbstractTransformation):
-    def __init__(self, exact_match_only=False, randomize=True, task=None,meta=False):
+    def __init__(self, exact_match_only=False, randomize=True, return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
@@ -16,88 +17,70 @@ class Emojify(AbstractTransformation):
         randomize : boolean
             If true, randomizes approximate matches.
             If false, always picks the first match.
-        task : str
-            the type of task you wish to transform the
-            input towards
+        return_metadata : bool
+            whether or not to return metadata, e.g. 
+            whether a transform was successfully
+            applied or not
         """
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='INV'),
+            Similarity(input_idx=[0,1], tran_type='INV'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='INV'),
+            Entailment(input_idx=[0,1], tran_type='INV'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
+        ]
         self.exact_match_only = exact_match_only
         self.randomize = randomize
         self.emo = Translator(self.exact_match_only, self.randomize)
-        self.task = task
-        self.metadata = meta
 
-    def __call__(self, string):
-        """
-        Parameters
-        ----------
-        string : str
-            The string input
+    def __call__(self, in_text):
+        out_text = self.emo.emojify(in_text)
+        return out_text
 
-        Returns
-        ----------
-        ret : str
-            The output with as many non-stopwords translated
-            to emojis as possible.
-        """
-        ret = self.emo.emojify(string)
-        assert type(ret) == str
-        meta = {'change': string!=ret}
-        if self.metadata: return ret, meta
-        return ret
-
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-        ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+    def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        elif tran_type == 'SIB':
-            soften = label_type == 'soft'
-            y_ = invert_label(y, soften=soften)
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
+            soften = task_config['label_type'] == 'soft'
+            y_out = invert_label(y, soften=soften)
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out
 
 class AddEmoji(Emojify):
-    def __init__(self, num=1, polarity=[-1, 1], task=None, meta=False):
+    def __init__(self, num=1, polarity=[-1, 1], return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
@@ -115,7 +98,7 @@ class AddEmoji(Emojify):
             - negative ==> [-1, -0.05] 
             - neutral ==> [-0.05, 0.05]
         """
-        super().__init__(self, meta=meta) 
+        super().__init__(self, return_metadata=False) 
         self.num = num
         self.polarity = polarity
         if self.polarity[0] <= -0.05:
@@ -124,26 +107,34 @@ class AddEmoji(Emojify):
             self.sentiment = 'positive'
         else:
             self.sentiment = 'neutral'
-        self.task=task
-        self.metadata = meta
+        
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='INV'),
+            Similarity(input_idx=[0,1], tran_type='INV'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='INV'),
+            Entailment(input_idx=[0,1], tran_type='INV'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
+        ]
 
-    def __call__(self, string):
+    def __call__(self, in_text):
         """
         Parameters
         ----------
-        string : str
+        in_text : str
             The string input
 
         Returns
         ----------
-        ret : str
+        out_text : str
             The output with `num` emojis appended
         """
-        ret = string + ' ' + ''.join(self.sample_emoji_by_polarity(self.polarity, self.num))
-        assert type(ret) == str
-        meta = {'change': string!=ret}
-        if self.metadata: return ret, meta
-        return ret
+        out_text = in_text + ' ' + ''.join(self.sample_emoji_by_polarity(self.polarity, self.num))
+        return out_text
 
     def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
         pass
@@ -153,216 +144,246 @@ class AddEmoji(Emojify):
         return emojis[emojis['polarity'].apply(
             lambda x: p_rng[0] <= x <= p_rng[1])].sample(num)['char'].values.tolist()
 
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        if tran_type == 'SIB':
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
             if self.sentiment == 'positive':
-                y_ = smooth_label(y, factor=0.5)
+                y_out = smooth_label(y, factor=0.5)
             if self.sentiment == 'negative':
-                y_ = smooth_label(y, factor=0.5)
+                y_out = smooth_label(y, factor=0.5)
             if self.sentiment == 'neutral':
-                y_ = y
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+                y_out = y
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out
 
 class AddPositiveEmoji(AddEmoji):
-    def __init__(self, num=1, polarity=[0.05, 1], task=None, meta=False):
-        super().__init__(self, meta=meta) 
+    def __init__(self, num=1, polarity=[0.05, 1], return_metadata=False):
+        super().__init__(self, return_metadata=False) 
         self.num = num
-        self.polarity = polarity
-        self.task=task
-        self.metadata = meta
-
-    def __call__(self, string):
-        ret = string + ' ' + ''.join(self.sample_emoji_by_polarity(self.polarity, self.num))
-        assert type(ret) == str
-        meta = {'change': string!=ret}
-        if self.metadata: return ret, meta
-        return ret
-
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
+        self.polarity = polarity        
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(tran_type='SIB'),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='INV'),
+            Similarity(input_idx=[0,1], tran_type='INV'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='INV'),
+            Entailment(input_idx=[0,1], tran_type='INV'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
         ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+
+    def __call__(self, in_text):
+        """
+        Parameters
+        ----------
+        in_text : str
+            The string input
+
+        Returns
+        ----------
+        out_text : str
+            The output with `num` emojis appended
+        """
+        out_text = in_text + ' ' + ''.join(self.sample_emoji_by_polarity(self.polarity, self.num))
+        return out_text
+
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+    def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        if tran_type == 'SIB':
-            y_ = smooth_label(y, factor=0.5)
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
+            y_out = smooth_label(y, factor=0.5)
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out
+
 
 class AddNegativeEmoji(AddEmoji):
-    def __init__(self, num=1, polarity=[-1, -0.05], task=None, meta=False):
-        super().__init__(self, meta=meta) 
+    def __init__(self, num=1, polarity=[-1, -0.05], return_metadata=False):
+        super().__init__(self, return_metadata=False) 
         self.num = num
         self.polarity = polarity
-        self.task=task
-        self.metadata = meta
-
-    def __call__(self, string):
-        ret = string + ' ' + ''.join(self.sample_emoji_by_polarity(self.polarity, self.num))
-        assert type(ret) == str
-        meta = {'change': string!=ret}
-        if self.metadata: return ret, meta
-        return ret
-
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'SIB',
-                'label_type' : 'soft'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(tran_type='SIB'),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='INV'),
+            Similarity(input_idx=[0,1], tran_type='INV'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='INV'),
+            Entailment(input_idx=[0,1], tran_type='INV'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
         ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+
+    def __call__(self, in_text):
+        """
+        Parameters
+        ----------
+        in_text : str
+            The string input
+
+        Returns
+        ----------
+        out_text : str
+            The output with `num` emojis appended
+        """
+        out_text = in_text + ' ' + ''.join(self.sample_emoji_by_polarity(self.polarity, self.num))
+        return out_text
+
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+    def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        if tran_type == 'SIB':
-            y_ = smooth_label(y, factor=0.5)
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
+            y_out = smooth_label(y, factor=0.5)
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out
 
 class AddNeutralEmoji(AddEmoji):
-    def __init__(self, num=1, polarity=[-0.05, 0.05], task=None, meta=False):
-        super().__init__(self, meta=meta) 
+    def __init__(self, num=1, polarity=[-0.05, 0.05], return_metadata=False):
+        super().__init__(self, return_metadata=False) 
         self.num = num
         self.polarity = polarity
-        self.task=task
-        self.metadata = meta
-
-    def __call__(self, string):
-        ret = string + ' ' + ''.join(self.sample_emoji_by_polarity(self.polarity, self.num))
-        assert type(ret) == str
-        meta = {'change': string!=ret}
-        if self.metadata: return ret, meta
-        return ret
-
-    def get_tran_types(self, task_name=None, tran_type=None, label_type=None):
-        self.task_config = [
-            {
-                'task_name' : 'sentiment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'topic',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'grammaticality',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'similarity',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'entailment',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
-            {
-                'task_name' : 'qa',
-                'tran_type' : 'INV',
-                'label_type' : 'hard'
-            },
+        self.return_metadata = return_metadata
+        self.task_configs = [
+            SentimentAnalysis(),
+            TopicClassification(),
+            Grammaticality(),
+            Similarity(input_idx=[1,0], tran_type='INV'),
+            Similarity(input_idx=[0,1], tran_type='INV'),
+            Similarity(input_idx=[1,1], tran_type='INV'),
+            Entailment(input_idx=[1,0], tran_type='INV'),
+            Entailment(input_idx=[0,1], tran_type='INV'),
+            Entailment(input_idx=[1,1], tran_type='INV'),
         ]
-        df = self._get_tran_types(self.task_config, task_name, tran_type, label_type)
+
+    def __call__(self, in_text):
+        """
+        Parameters
+        ----------
+        in_text : str
+            The string input
+
+        Returns
+        ----------
+        out_text : str
+            The output with `num` emojis appended
+        """
+        out_text = in_text + ' ' + ''.join(self.sample_emoji_by_polarity(self.polarity, self.num))
+        return out_text
+
+    def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
+        init_configs = [task() for task in self.task_configs]
+        df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y):
-        X_ = self(X)
-        
-        df = self.get_tran_types(task_name=self.task)
-        tran_type = df['tran_type'].iloc[0]
-        label_type = df['label_type'].iloc[0]
+    def transform_Xy(self, X, y, task_config):
 
-        if tran_type == 'INV':
-            y_ = y
-        if tran_type == 'SIB':
-            y_ = y
-        if self.metadata: return X_[0], y_, X_[1]
-        return X_, y_
+        # transform X
+        if isinstance(X, str):
+            X = [X]
+
+        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                         "amount of {} for the {} task".format(
+                                                            task_config['input_idx'],
+                                                            task_config['task_name']))
+
+        X_out = []
+        for i, x in zip(task_config['input_idx'], X):
+            if i == 0:
+                X_out.append(x)
+                continue
+            X_out.append(self(x))
+
+        metadata = {'change': X != X_out}
+        X_out = X_out[0] if len(X_out) == 1 else X_out
+
+        # transform y
+        if task_config['tran_type'] == 'INV':
+            y_out = y
+        else:
+            y_out = smooth_label(y, factor=0.5)
+        
+        if self.return_metadata: 
+            return X_out, y_out, metadata
+        return X_out, y_out
