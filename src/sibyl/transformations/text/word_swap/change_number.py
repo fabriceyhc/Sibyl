@@ -59,8 +59,8 @@ class ChangeNumber(AbstractTransformation):
             else:
                 change = self.replacement
             sub_re = re.compile(r'\b%s\b' % x)
-            out_text = sub_re.sub(str(change), doc.text)
-        return out_text
+            in_text = sub_re.sub(str(change), doc.text)
+        return in_text
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
         init_configs = [task() for task in self.task_configs]

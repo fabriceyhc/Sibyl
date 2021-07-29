@@ -4,6 +4,7 @@ import collections
 import pattern
 import spacy
 import en_core_web_sm
+import numpy as np
 
 class RemoveNegation(AbstractTransformation):
     """
@@ -136,10 +137,16 @@ class RemoveNegation(AbstractTransformation):
             if task_config['task_name'] == 'similarity':
                 # hard code for now... :(
                 # 0 = dissimilar, 1 = similar
-                if y == 0:
-                    y_out = 0
+                if isinstance(y, int):
+                    if y == 0:
+                        y_out = 0
+                    else:
+                        y_out = invert_label(y, soften=soften)
                 else:
-                    y_out = invert_label(y, soften=soften)
+                    if np.argmax(y) == 0:
+                        y_out = 0
+                    else:
+                        y_out = smooth_label(y, factor=0.25)
             elif task_config['task_name'] == 'entailment':
                 # hard coded for now... :(
                 # 0 = entailed, 1 = neutral, 2 = contradiction

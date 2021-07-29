@@ -1,6 +1,7 @@
 from ..abstract_transformation import *
 from ..tasks import *
 import pandas as pd
+import numpy as np
 import os
 
 class AddSentimentLink(AbstractTransformation):
@@ -101,10 +102,16 @@ class AddSentimentLink(AbstractTransformation):
             if task_config['task_name'] == 'similarity':
                 # hard code for now... :(
                 # 0 = dissimilar, 1 = similar
-                if y == 0:
-                    y_out = 0
+                if isinstance(y, int):
+                    if y == 0:
+                        y_out = 0
+                    else:
+                        y_out = invert_label(y, soften=soften)
                 else:
-                    y_out = smooth_label(y, factor=0.5)
+                    if np.argmax(y) == 0:
+                        y_out = 0
+                    else:
+                        y_out = smooth_label(y, factor=0.25)
             elif task_config['task_name'] == 'sentiment':
                 if self.sentiment == 'positive':
                     y_out = smooth_label(y, factor=0.5)
@@ -173,17 +180,23 @@ class AddPositiveLink(AddSentimentLink):
         if task_config['tran_type'] == 'INV':
             y_out = y
         else:
+            soften = task_config['label_type'] == 'soft'
             if task_config['task_name'] == 'similarity':
                 # hard code for now... :(
                 # 0 = dissimilar, 1 = similar
-                if y == 0:
-                    y_out = 0
+                if isinstance(y, int):
+                    if y == 0:
+                        y_out = 0
+                    else:
+                        y_out = invert_label(y, soften=soften)
                 else:
-                    y_out = smooth_label(y, factor=0.5)
+                    if np.argmax(y) == 0:
+                        y_out = 0
+                    else:
+                        y_out = smooth_label(y, factor=0.25)
             elif task_config['task_name'] == 'sentiment':
                 y_out = smooth_label(y, factor=0.5)
             else:
-                soften = task_config['label_type'] == 'soft'
                 y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
@@ -245,17 +258,23 @@ class AddNegativeLink(AddSentimentLink):
         if task_config['tran_type'] == 'INV':
             y_out = y
         else:
+            soften = task_config['label_type'] == 'soft'
             if task_config['task_name'] == 'similarity':
                 # hard code for now... :(
                 # 0 = dissimilar, 1 = similar
-                if y == 0:
-                    y_out = 0
+                if isinstance(y, int):
+                    if y == 0:
+                        y_out = 0
+                    else:
+                        y_out = invert_label(y, soften=soften)
                 else:
-                    y_out = smooth_label(y, factor=0.5)
+                    if np.argmax(y) == 0:
+                        y_out = 0
+                    else:
+                        y_out = smooth_label(y, factor=0.25)
             elif task_config['task_name'] == 'sentiment':
                 y_out = smooth_label(y, factor=0.5)
             else:
-                soften = task_config['label_type'] == 'soft'
                 y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 

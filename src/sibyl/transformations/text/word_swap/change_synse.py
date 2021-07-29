@@ -261,13 +261,19 @@ class ChangeAntonym(ChangeSynse):
             y_out = y
         else:
             soften = task_config['label_type'] == 'soft'
-            if task_config['task_name'] == 'grammaticality':
+            if task_config['task_name'] == 'similarity':
                 # hard code for now... :(
-                # 0 = ungrammatical, 1 = grammatical
-                if y == 0:
-                    y_out = y
+                # 0 = dissimilar, 1 = similar
+                if isinstance(y, int):
+                    if y == 0:
+                        y_out = 0
+                    else:
+                        y_out = invert_label(y, soften=soften)
                 else:
-                    y_out = invert_label(y, soften=soften)
+                    if np.argmax(y) == 0:
+                        y_out = 0
+                    else:
+                        y_out = smooth_label(y, factor=0.25)
             elif task_config['task_name'] == 'similarity':
                 y_out = smooth_label(y, factor=0.5)
             else:
@@ -285,8 +291,8 @@ class ChangeHyponym(ChangeSynse):
             SentimentAnalysis(),
             TopicClassification(),
             Grammaticality(tran_type='SIB'),
-            Similarity(input_idx=[1,0], tran_type='SIB'),
-            Similarity(input_idx=[0,1], tran_type='SIB'),
+            Similarity(input_idx=[1,0], tran_type='INV'),
+            Similarity(input_idx=[0,1], tran_type='INV'),
             Similarity(input_idx=[1,1], tran_type='INV'),
             Entailment(input_idx=[1,0], tran_type='INV'),
             Entailment(input_idx=[0,1], tran_type='INV'),
@@ -351,8 +357,8 @@ class ChangeHypernym(ChangeSynse):
             SentimentAnalysis(),
             TopicClassification(),
             Grammaticality(tran_type='SIB'),
-            Similarity(input_idx=[1,0], tran_type='SIB'),
-            Similarity(input_idx=[0,1], tran_type='SIB'),
+            Similarity(input_idx=[1,0], tran_type='INV'),
+            Similarity(input_idx=[0,1], tran_type='INV'),
             Similarity(input_idx=[1,1], tran_type='INV'),
             Entailment(input_idx=[1,0], tran_type='INV'),
             Entailment(input_idx=[0,1], tran_type='INV'),

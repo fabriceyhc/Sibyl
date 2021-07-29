@@ -78,7 +78,7 @@ class RandomInsertion(AbstractTransformation):
             if task_config['task_name'] == 'grammaticality':
                 y_out = invert_label(y, soften=soften)
             elif task_config['task_name'] == 'similarity':
-                y_out = smooth_label(y, factor=0.5)
+                y_out = smooth_label(y, factor=0.25)
             else:
                 y_out = invert_label(y, soften=soften)
         

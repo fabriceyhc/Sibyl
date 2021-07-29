@@ -83,15 +83,29 @@ class ChangeLocation(AbstractTransformation):
         if task_config['tran_type'] == 'INV':
             y_out = y
         else:
+            soften = task_config['label_type'] == 'soft'
+            if task_config['task_name'] == 'similarity':
+                # hard code for now... :(
+                # 0 = dissimilar, 1 = similar
+                if isinstance(y, int):
+                    if y == 0:
+                        y_out = 0
+                    else:
+                        y_out = invert_label(y, soften=soften)
+                else:
+                    if np.argmax(y) == 0:
+                        y_out = 0
+                    else:
+                        y_out = smooth_label(y, factor=0.25)
             if task_config['task_name'] == 'entailment':
                 # hard coded for now... :(
                 # 0 = entailed, 1 = neutral, 2 = contradiction
-                if y == 0 or y == 2: 
-                    y_out = 1
-                else: 
-                    y_out = y
+                if isinstance(y, int): 
+                    if y == 0 or y == 2: 
+                        y_out = 1
+                    else: 
+                        y_out = y
             else:
-                soften = task_config['label_type'] == 'soft'
                 y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 

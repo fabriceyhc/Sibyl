@@ -4,6 +4,7 @@ from urllib.request import urlopen
 from bs4 import BeautifulSoup 
 from bs4.element import Comment
 import re
+import numpy as np
 
 class ImportLinkText(AbstractTransformation):
     """
@@ -89,10 +90,16 @@ class ImportLinkText(AbstractTransformation):
             if task_config['task_name'] == 'similarity':
                 # hard code for now... :(
                 # 0 = dissimilar, 1 = similar
-                if y == 0:
-                    y_out = 0
+                if isinstance(y, int):
+                    if y == 0:
+                        y_out = 0
+                    else:
+                        y_out = invert_label(y, soften=soften)
                 else:
-                    y_out = invert_label(y, soften=soften)
+                    if np.argmax(y) == 0:
+                        y_out = 0
+                    else:
+                        y_out = smooth_label(y, factor=0.25)
             elif task_config['task_name'] == 'entailment':
                 # hard coded for now... :(
                 # 0 = entailed, 1 = neutral, 2 = contradiction
