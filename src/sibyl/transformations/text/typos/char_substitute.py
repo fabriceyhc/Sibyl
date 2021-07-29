@@ -46,10 +46,11 @@ class RandomCharSubst(AbstractTransformation):
         in_text : str
             The output with random Substitutions
         """
-        assert n <= len(in_text), "n is too large. n should be <= "+str(len(in_text))
-        idx = sorted(np.random.choice(len(in_text), n, replace=False))
-        for i in idx:
-            in_text = in_text[:i] + get_random_letter() + in_text[i + 1 :]
+        if len(in_text) > 0:
+            assert n <= len(in_text), "n is too large. n should be <= "+str(len(in_text))
+            idx = sorted(np.random.choice(len(in_text), n, replace=False))
+            for i in idx:
+                in_text = in_text[:i] + get_random_letter() + in_text[i + 1 :]
         return in_text
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):

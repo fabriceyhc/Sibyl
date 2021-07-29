@@ -1,7 +1,5 @@
 src/sibyl_tool.egg-info/
 *.pyc
-*.pyc
 *.gz
 *.whl
-
 *.pyc

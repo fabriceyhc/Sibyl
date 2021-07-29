@@ -46,9 +46,10 @@ class RandomCharInsert(AbstractTransformation):
         in_text : str
             The output with random chars inserted
         """
-        idx = sorted(np.random.choice(len(in_text), n, replace=False))
-        for i in idx:
-            in_text = in_text[:i] + get_random_letter() + in_text[i:]
+        if len(in_text) > 0:
+            idx = sorted(np.random.choice(len(in_text), n, replace=False))
+            for i in idx:
+                in_text = in_text[:i] + get_random_letter() + in_text[i:]
         return in_text
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
