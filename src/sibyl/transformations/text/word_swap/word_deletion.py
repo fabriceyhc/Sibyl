@@ -62,8 +62,6 @@ class WordDeletion(AbstractTransformation):
         #if you end up deleting all words, just return a random word
         if len(new_words) == 0:
             rand_int = random.randint(0, len(words)-1)
-            meta = {'change': string!=words[rand_int]}
-            if self.metadata: return words[rand_int], meta
             return words[rand_int]
 
         out_text = ' '.join(new_words)
