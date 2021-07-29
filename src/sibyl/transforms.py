@@ -71,11 +71,11 @@ from tqdm import tqdm
 from .utils import *
 from .transformations.utils import *
 
-def init_transforms(task_type=None, tran_type=None, label_type=None, meta=True):
+def init_transforms(task_type=None, tran_type=None, label_type=None, return_metadata=True):
     df_all = []
     for transform in TRANSFORMATIONS:
-        t = transform(task=task_type, meta=meta)
-        df = t.get_tran_types()
+        t = transform(return_metadata=return_metadata)
+        df = t.get_task_configs()
         df['transformation'] = t.__class__.__name__
         df['tran_fn'] = t
         df_all.append(df)
