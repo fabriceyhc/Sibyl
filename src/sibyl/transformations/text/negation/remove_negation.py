@@ -150,10 +150,16 @@ class RemoveNegation(AbstractTransformation):
             elif task_config['task_name'] == 'entailment':
                 # hard coded for now... :(
                 # 0 = entailed, 1 = neutral, 2 = contradiction
-                if y == 0 or y == 2:
-                    y_out = 1
-                else: 
-                    y_out = y
+                if isinstance(y, int):
+                    if y in [0, 2]:
+                        y_out = 1
+                    else: 
+                        y_out = y
+                else:
+                    if np.argmax(y) in [0, 2]:
+                        y_out = 1
+                    else:
+                        y_out = y
             else:
                 y_out = invert_label(y, soften=soften)
         
