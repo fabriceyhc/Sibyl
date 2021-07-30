@@ -149,7 +149,10 @@ class RemoveEmoji(Demojify):
     def remove_emoji_by_polarity(self, string, p_rng=[-1,1]):
         for emoji_data in emoji_lis(string)[::-1]:
             i, emoji = emoji_data.values()
-            _polarity = self.emo.get_df_by_emoji(emoji)['polarity'].iloc[0]
+            df = self.emo.get_df_by_emoji(emoji)
+            if len(df) == 0:
+                continue
+            _polarity = df['polarity'].iloc[0]
             if p_rng[0] <= _polarity <= p_rng[1]:
                 string = string[:i] + '' + string[i + 1:].lstrip()
         return string.rstrip()
