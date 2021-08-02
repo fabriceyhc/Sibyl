@@ -83,10 +83,16 @@ class ImportLinkText(AbstractTransformation):
             if task_config['task_name'] == 'grammaticality':
                 # hard code for now... :(
                 # 0 = ungrammatical, 1 = grammatical
-                if y == 0:
-                    y_out = y
+                if isinstance(y, int):
+                    if y == 0:
+                        y_out = y
+                    else: 
+                        y_out = invert_label(y, soften=soften)
                 else:
-                    y_out = invert_label(y, soften=soften)
+                    if np.argmax(y) == 0:
+                        y_out = y
+                    else: 
+                        y_out = invert_label(y, soften=soften)
             if task_config['task_name'] == 'similarity':
                 # hard code for now... :(
                 # 0 = dissimilar, 1 = similar
