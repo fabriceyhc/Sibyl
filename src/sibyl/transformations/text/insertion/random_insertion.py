@@ -39,9 +39,12 @@ class RandomInsertion(AbstractTransformation):
     
     def __call__(self, in_text):
         new_words = in_text.split()
-        for _ in range(self.n):
-            add_word(new_words)
-        out_text = ' '.join(new_words)
+        if len(new_words) - 1 > 0:
+            for _ in range(self.n):
+                add_word(new_words)
+            out_text = ' '.join(new_words)
+        else:
+            out_text = in_text
         return out_text
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
