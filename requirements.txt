@@ -8,6 +8,8 @@ seaborn
 randaugment
 umap
 torch==1.8.1+cu102
+transformers-interpret
+git+https://github.com/boudinfl/pke.git
 
 ## dev
 # jupyter

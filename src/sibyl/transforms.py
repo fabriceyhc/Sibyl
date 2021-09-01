@@ -23,6 +23,7 @@ from .transformations.text.typos.char_substitute import RandomCharSubst
 from .transformations.text.typos.char_swap import RandomCharSwap
 from .transformations.text.typos.char_swap_qwerty import RandomSwapQwerty 
 from .transformations.text.mixture.text_mix import TextMix, SentMix, WordMix
+from .transformations.text.generative.concept2sentence import Concept2Sentence
 
 TRANSFORMATIONS = [
     ExpandContractions,
@@ -60,7 +61,8 @@ TRANSFORMATIONS = [
     RandomSwap, 
     TextMix, 
     SentMix, 
-    WordMix
+    WordMix,
+    Concept2Sentence
 ]
 
 import torch
