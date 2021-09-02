@@ -174,8 +174,8 @@ class ConceptMix(AbstractBatchTransformation):
         texts1 = texts1.astype(np.string_)
         texts2 = texts2.astype(np.string_)
         # prep targets
-        targets1_ohe = one_hot_encode(targets1, num_classes).astype(np.float32)
-        targets2_ohe = one_hot_encode(targets2, num_classes).astype(np.float32)
+        targets1_ohe = np.array([one_hot_encode(t, num_classes).astype(np.float32) for t in targets1])
+        targets2_ohe = np.array([one_hot_encode(t, num_classes).astype(np.float32) for t in targets2])
         if len(targets1_ohe.shape) == 1:
             targets1_ohe = np.expand_dims(targets1_ohe, 0)
         if len(targets2_ohe.shape) == 1:
