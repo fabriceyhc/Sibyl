@@ -24,6 +24,7 @@ from .transformations.text.typos.char_swap import RandomCharSwap
 from .transformations.text.typos.char_swap_qwerty import RandomSwapQwerty 
 from .transformations.text.mixture.text_mix import TextMix, SentMix, WordMix
 from .transformations.text.generative.concept2sentence import Concept2Sentence
+from .transformations.text.mixture.concept_mix import ConceptMix
 
 TRANSFORMATIONS = [
     ExpandContractions,

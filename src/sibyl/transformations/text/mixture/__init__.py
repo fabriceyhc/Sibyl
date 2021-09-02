@@ -1,5 +1,6 @@
 __all__ = [
 	'TextMix',
 	'SentMix',
-	'WordMix'
+	'WordMix',
+	'ContextMix'
 ]

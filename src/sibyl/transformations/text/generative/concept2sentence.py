@@ -72,16 +72,28 @@ class Concept2Sentence(AbstractTransformation):
             self.antonymizer = ChangeAntonym()
     
     def __call__(self, in_text, in_target=None, n=None, threshold=0.5):
+        concepts = self.extract_concepts(in_text, in_target, n, threshold)
+        new_sentence = self.generate_text_from_concepts(concepts)
+        if self.return_concepts:
+            return concepts, new_sentence
+        return new_sentence
+
+    def extract_concepts(self, in_text, in_target, n=None, threshold=0.5):
+        if not isinstance(in_target, int):
+            in_target = np.argmax(in_target)
         # extract concepts
         concepts = self.extractor(in_text, label_idx=in_target, threshold=threshold)
         if self.antonymize:
             concepts = list(set([self.antonymizer(c) for c in concepts]))
         # reomve punctuation
         concepts = [c for c in concepts if c not in string.punctuation]
+        return concepts
+
+    def generate_text_from_concepts(self, concepts):
         # prepare batch --> generate sentence from concepts
-        tran_batch = {'concepts': [concepts], 'target': ''}
+        batch = {'concepts': [concepts], 'target': ''}
         new_sentence = beam_generate_sentences(
-            tran_batch,
+            batch,
             self.model,
             self.tokenizer,
             num_beams=self.gen_beam_size,
@@ -89,10 +101,7 @@ class Concept2Sentence(AbstractTransformation):
             max_length=self.text_max_length,
             device=self.device
         )
-        if self.return_concepts:
-            return concepts, new_sentence
         return new_sentence
-
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
         init_configs = [task() for task in self.task_configs]
