@@ -33,6 +33,8 @@ class Concept2Sentence(AbstractTransformation):
     analysis, topic classification, etc. 
     """
 
+    uses_dataset = True
+    
     def __init__(self, 
                  return_metadata=False, 
                  dataset=None, 
@@ -40,7 +42,7 @@ class Concept2Sentence(AbstractTransformation):
                  gen_beam_size=10,
                  text_min_length=10,
                  text_max_length=32,
-                 device='cpu',
+                 device='cuda',
                  antonymize=False,
                  return_concepts=False):
         self.return_metadata = return_metadata
@@ -60,7 +62,7 @@ class Concept2Sentence(AbstractTransformation):
         self.gen_beam_size = gen_beam_size
         self.text_min_length = text_min_length
         self.text_max_length = text_max_length
-        self.device = device
+        self.device = torch.device('cuda') if torch.cuda.is_available() and 'cuda' in device else torch.device('cpu')
         self.antonymize = antonymize
         self.return_concepts = return_concepts
         self.extractor = RationalizedKeyphraseExtractor(dataset=self.dataset, 
@@ -71,14 +73,14 @@ class Concept2Sentence(AbstractTransformation):
         if self.antonymize:
             self.antonymizer = ChangeAntonym()
     
-    def __call__(self, in_text, in_target=None, n=None, threshold=0.5):
+    def __call__(self, in_text, in_target=None, n=None, threshold=None):
         concepts = self.extract_concepts(in_text, in_target, n, threshold)
         new_sentence = self.generate_text_from_concepts(concepts)
         if self.return_concepts:
             return concepts, new_sentence
         return new_sentence
 
-    def extract_concepts(self, in_text, in_target, n=None, threshold=0.5):
+    def extract_concepts(self, in_text, in_target, n=None, threshold=None):
         if not isinstance(in_target, int):
             in_target = np.argmax(in_target)
         # extract concepts

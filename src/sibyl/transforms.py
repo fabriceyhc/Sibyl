@@ -63,7 +63,8 @@ TRANSFORMATIONS = [
     TextMix, 
     SentMix, 
     WordMix,
-    Concept2Sentence
+    Concept2Sentence,
+    ConceptMix
 ]
 
 import torch
@@ -74,14 +75,24 @@ from tqdm import tqdm
 from .utils import *
 from .transformations.utils import *
 
-def init_transforms(task_type=None, tran_type=None, label_type=None, return_metadata=True):
+def init_transforms(task_type=None, tran_type=None, label_type=None, return_metadata=True, dataset=None, transforms=None):
     df_all = []
-    for transform in TRANSFORMATIONS:
-        t = transform(return_metadata=return_metadata)
-        df = t.get_task_configs()
-        df['transformation'] = t.__class__.__name__
-        df['tran_fn'] = t
-        df_all.append(df)
+    if transforms:
+        for tran in transforms:
+            df = tran.get_task_configs()
+            df['transformation'] = tran.__class__.__name__
+            df['tran_fn'] = tran
+            df_all.append(df)
+    else:
+        for tran in TRANSFORMATIONS:
+            if hasattr(tran, 'dataset'):
+                t = tran(return_metadata=return_metadata, dataset=dataset)
+            else:
+                t = tran(return_metadata=return_metadata)
+            df = t.get_task_configs()
+            df['transformation'] = t.__class__.__name__
+            df['tran_fn'] = t
+            df_all.append(df)
     df = pd.concat(df_all)
     if task_type is not None:
         task_df = df['task_name'] == task_type
@@ -295,9 +306,18 @@ def transform_dataset_INVSIB(
     new_text = [str(x).encode('utf-8') for x in new_text]
     return np.array(new_text, dtype=np.string_), np.array(new_label), np.array(trans, dtype=np.string_)
 
+# collators
+
+class DefaultCollator:
+    def __init__(self):
+        pass
+    def __call__(self, batch):
+        return torch.utils.data.dataloader.default_collate(batch)
 
 class SibylCollator:
     """
+        sentence1_key     : the key to the first input (required)
+        sentence2_key     : the key to the second input (optional)
         tokenize_fn       : tokenizer, if none provided, just returns inputs and targets
         transform         : a particular initialized transform (e.g. TextMix()) to apply to the inputs (overrides random sampling)
         num_sampled_INV   : number of uniformly sampled INV transforms to apply upon the inputs 
@@ -317,10 +337,13 @@ class SibylCollator:
                             setting this value to true adds back the raw text for additional use
     """
     def __init__(self, 
+                 sentence1_key,
+                 sentence2_key=None,
                  tokenize_fn=None, 
                  transform=None, 
                  num_sampled_INV=0, 
                  num_sampled_SIB=0, 
+                 dataset=None,
                  task_type=None, 
                  tran_type=None, 
                  label_type=None,
@@ -331,12 +354,14 @@ class SibylCollator:
                  reduce_mixed=False,
                  num_classes=2,
                  return_tensors='pt',
-                 return_text=True):
-        
+                 return_text=False):
+        self.sentence1_key = sentence1_key
+        self.sentence2_key = sentence2_key
         self.tokenize_fn = tokenize_fn
         self.transform = transform
         self.num_sampled_INV = num_sampled_INV
         self.num_sampled_SIB = num_sampled_SIB
+        self.dataset = dataset
         self.task_type = task_type
         self.tran_type = tran_type
         self.label_type = label_type
@@ -348,30 +373,60 @@ class SibylCollator:
         self.num_classes = num_classes
         self.return_tensors = return_tensors
         self.return_text = return_text
-
-        if self.transform:
-            print("SibylCollator initialized with {}".format(transform.__class__.__name__))
+        
+        if self.transform: 
+                print("SibylCollator initialized with {}".format(transform.__class__.__name__))
+                
         else: 
-            self.transforms_df = init_transforms(task_type=task_type, tran_type=tran_type, label_type=label_type, meta=True)
-            print("SibylCollator initialized with num_sampled_INV={} and num_sampled_SIB={}".format(num_sampled_INV, num_sampled_SIB))
-
+            self.transforms_df = init_transforms(task_type=task_type, 
+                                                 tran_type=tran_type, 
+                                                 label_type=label_type, 
+                                                 return_metadata=True,
+                                                 dataset=dataset)
+            print("SibylCollator initialized with num_sampled_INV={} and num_sampled_SIB={}".format(
+                num_sampled_INV, num_sampled_SIB))
+        
         
     def __call__(self, batch):
-        text = [x['text'] for x in batch]
+        if all(['input_ids' in x for x in batch]):
+            return {
+                'input_ids': torch.stack([x['input_ids'] for x in batch]),
+                'labels': torch.stack([x['labels'] for x in batch]),
+                'attention_mask': torch.stack([x['attention_mask'] for x in batch])
+            }
+        if self.sentence2_key is None:
+            text = [x[self.sentence1_key] for x in batch]
+        else:
+            text = [[x[self.sentence1_key], x[self.sentence2_key]] for x in batch]
         labels = [x['label'] for x in batch]
         if torch.rand(1) < self.transform_prob:
             if self.transform:
-                text, labels = self.transform(
-                    (text, labels), 
-                    self.target_pairs,   
-                    self.target_prob,
-                    self.num_classes
-                )
+                if 'AbstractBatchTransformation' in self.transform.__class__.__bases__[0].__name__:
+                    text, labels = self.transform(
+                        (text, labels), 
+                        self.target_pairs,   
+                        self.target_prob,
+                        self.num_classes
+                    )
+                else:
+                    task_config = init_transforms(task_type=self.task_type, 
+                                                  tran_type=self.tran_type, 
+                                                  label_type=self.label_type, 
+                                                  return_metadata=True,
+                                                  dataset=self.dataset,
+                                                  transforms=[self.transform]).to_dict(orient='records')[0]
+                    new_text, new_labels = [], []
+                    for X, y in zip(text, labels):
+                        X, y = self.transform.transform_Xy(X, y, task_config)
+                        new_text.append(X)
+                        new_labels.append(y)           
+                    text = new_text   
+                    labels = new_labels     
             else:
                 new_text, new_labels, trans = [], [], []
                 for X, y in zip(text, labels): 
                     t_trans = []
-
+                    
                     num_tries = 0
                     num_INV_applied = 0
                     while num_INV_applied < self.num_sampled_INV:
@@ -379,10 +434,15 @@ class SibylCollator:
                             break
                         t_df   = self.transforms_df[self.transforms_df['tran_type']=='INV'].sample(1)
                         t_fn   = t_df['tran_fn'].iloc[0]
-                        t_name = t_df['transformation'].iloc[0]                
+                        t_name = t_df['transformation'].iloc[0]  
+                        t_config = t_df.to_dict(orient='records')[0]
                         if t_name in trans:
                             continue
-                        X, y, meta = t_fn.transform_Xy(str(X), y)
+                        try:
+                            X, y, meta = t_fn.transform_Xy(X, y, t_config)
+                        except Exception as e:
+                            meta = {"change":False}
+                            print(e)
                         if self.one_hot:
                             y = one_hot_encode(y, self.num_classes)
                         if meta['change']:
@@ -397,18 +457,23 @@ class SibylCollator:
                             break
                         t_df   = self.transforms_df[self.transforms_df['tran_type']=='SIB'].sample(1)
                         t_fn   = t_df['tran_fn'].iloc[0]
-                        t_name = t_df['transformation'].iloc[0]                
+                        t_name = t_df['transformation'].iloc[0]   
+                        t_config = t_df.to_dict(orient='records')[0]  
                         if t_name in trans:
                             continue
                         if 'AbstractBatchTransformation' in t_fn.__class__.__bases__[0].__name__:
                             Xs, ys = sample_Xy(text, labels, num_sample=1)
                             Xs.append(X); ys.append(y) 
-                            Xs = [str(x) for x in Xs]
+                            # Xs = [str(x) for x in Xs]
                             ys = [np.squeeze(one_hot_encode(y, self.num_classes)) for y in ys]
                             (X, y), meta = t_fn((Xs, ys), self.target_pairs, self.target_prob, self.num_classes)
                             X, y = X[0], y[0]
                         else:
-                            X, y, meta = t_fn.transform_Xy(str(X), y)
+                            try:
+                                X, y, meta = t_fn.transform_Xy(X, y, t_config)
+                            except Exception as e:
+                                meta = {"change":False}
+                                print(e)
                             if self.one_hot:
                                 y = one_hot_encode(y, self.num_classes)
                         if meta['change']:
@@ -422,7 +487,12 @@ class SibylCollator:
                 text = new_text   
                 labels = new_labels
 
-        text = [x[0] if type(x) == list else x for x in text]
+        if self.sentence2_key is None:
+            text1 = [x[0] if type(x) == list else x for x in text]
+            text2 = None
+        else:
+            text1 = [x[0] for x in text]
+            text2 = [x[1] for x in text]
         labels = [y.squeeze().tolist() if type(y) == np.ndarray else y for y in labels]
         
         if self.reduce_mixed and len(labels.shape) >= 2:
@@ -439,12 +509,15 @@ class SibylCollator:
             labels = torch.nn.functional.one_hot(labels, num_classes=self.num_classes)
 
         if self.tokenize_fn:
-            batch = self.tokenize_fn(text)
+            batch = self.tokenize_fn(text1, text2)
             batch['labels'] = labels
             batch.pop('idx', None)
             batch.pop('label', None)
             if self.return_text:
                 batch['text'] = text
         else:
-            batch = (text, labels)
+            if self.sentence2_key is None:
+                batch = (text1, labels)
+            else:
+                batch = (text1, text2, labels)
         return batch

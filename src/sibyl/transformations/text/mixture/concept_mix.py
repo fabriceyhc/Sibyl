@@ -8,10 +8,9 @@ import itertools
 import nltk
 
 class ConceptMix(AbstractBatchTransformation):
-    """
-    Concatenates two texts together and interpolates 
-    the labels
-    """
+
+    uses_dataset = True
+    
     def __init__(self, 
                  return_metadata=False,
                  dataset=None, 
