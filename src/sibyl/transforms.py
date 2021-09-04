@@ -482,7 +482,7 @@ class SibylCollator:
                         num_tries += 1
 
                     new_text.append(X)
-                    new_labels.append(y)
+                    new_labels.append(np.array(y))
                     trans.append(t_trans)            
                 text = new_text   
                 labels = new_labels
