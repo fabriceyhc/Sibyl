@@ -103,6 +103,8 @@ class Concept2Sentence(AbstractTransformation):
             max_length=self.text_max_length,
             device=self.device
         )
+        if len(new_sentence) == 1:
+            return new_sentence[0]
         return new_sentence
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
