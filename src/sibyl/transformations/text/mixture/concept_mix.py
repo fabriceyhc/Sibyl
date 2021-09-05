@@ -210,16 +210,22 @@ class ConceptMix(AbstractBatchTransformation):
             concepts1 = self.c2s.extract_concepts(s1, t1_cls)
             concepts2 = self.c2s.extract_concepts(s2, t2_cls)
             combined_concepts = list(set(concepts1 + concepts2))
-            new_text = self.c2s.generate_text_from_concepts(combined_concepts)[0]
+            if not combined_concepts:
+                # if there aren't any concepts extracted
+                # simply append the original sentence and target unchanged
+                new_texts.append(s1)
+                new_targets.append(t1)
+            else:
+                new_text = self.c2s.generate_text_from_concepts(combined_concepts)[0]
 
-            # transform targets
-            lam = len(concepts1) / len(combined_concepts)
-            t1_ohe[t1_cls] *= lam
-            t2_ohe[t2_cls] *= 1-lam    
-            new_target = np.array(t1_ohe) + np.array(t2_ohe)
+                # transform targets
+                lam = len(concepts1) / len(combined_concepts)
+                t1_ohe[t1_cls] *= lam
+                t2_ohe[t2_cls] *= 1-lam    
+                new_target = np.array(t1_ohe) + np.array(t2_ohe)
 
-            new_texts.append(new_text)
-            new_targets.append(new_target)
+                new_texts.append(new_text)
+                new_targets.append(new_target)
 
         return new_texts, new_targets
 

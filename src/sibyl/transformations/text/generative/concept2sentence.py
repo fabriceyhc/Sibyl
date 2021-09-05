@@ -75,6 +75,8 @@ class Concept2Sentence(AbstractTransformation):
     
     def __call__(self, in_text, in_target=None, n=None, threshold=None):
         concepts = self.extract_concepts(in_text, in_target, n, threshold)
+        if not concepts:
+            return in_text
         new_sentence = self.generate_text_from_concepts(concepts)
         if self.return_concepts:
             return concepts, new_sentence
