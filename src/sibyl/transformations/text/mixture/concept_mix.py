@@ -214,7 +214,7 @@ class ConceptMix(AbstractBatchTransformation):
                 # if there aren't any concepts extracted
                 # simply append the original sentence and target unchanged
                 new_texts.append(s1)
-                new_targets.append(t1)
+                new_targets.append(t1_ohe)
             else:
                 new_text = self.c2s.generate_text_from_concepts(combined_concepts)[0]
 
