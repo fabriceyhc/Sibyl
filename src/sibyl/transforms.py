@@ -482,7 +482,7 @@ class SibylCollator:
                         num_tries += 1
 
                     new_text.append(X)
-                    new_labels.append(np.array(y))
+                    new_labels.append(y)
                     trans.append(t_trans)            
                 text = new_text   
                 labels = new_labels
@@ -493,7 +493,7 @@ class SibylCollator:
         else:
             text1 = [x[0] for x in text]
             text2 = [x[1] for x in text]
-        labels = [y.squeeze().tolist() if type(y) == np.ndarray else y for y in labels]
+        labels = [np.squeeze(y).tolist() if isinstance(y, (list, np.ndarray, torch.Tensor)) else y for y in labels]
         
         if self.reduce_mixed and len(labels.shape) >= 2:
             labels = [np.argmax(y) if i == 1 else self.num_classes for (i, y) in zip(np.count_nonzero(labels, axis=-1), labels)]
