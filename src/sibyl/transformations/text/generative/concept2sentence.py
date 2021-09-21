@@ -69,12 +69,13 @@ class Concept2Sentence(AbstractTransformation):
                                                         extract=self.extract, 
                                                         device=self.device)
         self.tokenizer = AutoTokenizer.from_pretrained("sibyl/BART-commongen")
-        self.model = AutoModelForSeq2SeqLM.from_pretrained("sibyl/BART-commongen").to(device)
+        self.model = AutoModelForSeq2SeqLM.from_pretrained("sibyl/BART-commongen").to(self.device)
         if self.antonymize:
             self.antonymizer = ChangeAntonym()
     
-    def __call__(self, in_text, in_target=None, n=None, threshold=None):
+    def __call__(self, in_text, in_target=None, n=None, threshold=0.7):
         concepts = self.extract_concepts(in_text, in_target, n, threshold)
+        print(concepts)
         if not concepts:
             return in_text
         new_sentence = self.generate_text_from_concepts(concepts)
