@@ -488,11 +488,11 @@ class SibylCollator:
                 labels = new_labels
 
         if self.sentence2_key is None:
-            text1 = [x[0] if type(x) == list else x for x in text]
+            text1 = [str(x[0]) if type(x) == list else str(x) for x in text]
             text2 = None
         else:
-            text1 = [x[0] for x in text]
-            text2 = [x[1] for x in text]
+            text1 = [str(x[0]) if type(x) == list else str(x) for x in text]
+            text2 = [str(x[1]) if type(x) == list else str(x) for x in text]
         labels = [np.squeeze(y).tolist() if isinstance(y, (list, np.ndarray, torch.Tensor)) else y for y in labels]
         
         if self.reduce_mixed and len(labels.shape) >= 2:
