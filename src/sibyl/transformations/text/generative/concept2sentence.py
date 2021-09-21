@@ -38,7 +38,7 @@ class Concept2Sentence(AbstractTransformation):
     def __init__(self, 
                  return_metadata=False, 
                  dataset=None, 
-                 extract="concept",
+                 extract="token",
                  gen_beam_size=10,
                  text_min_length=10,
                  text_max_length=32,
@@ -73,21 +73,25 @@ class Concept2Sentence(AbstractTransformation):
         if self.antonymize:
             self.antonymizer = ChangeAntonym()
     
-    def __call__(self, in_text, in_target=None, n=None, threshold=0.7):
+    def __call__(self, in_text, in_target=None, n=2, threshold=None):
         concepts = self.extract_concepts(in_text, in_target, n, threshold)
-        print(concepts)
-        if not concepts:
-            return in_text
-        new_sentence = self.generate_text_from_concepts(concepts)
+        if concepts:
+            new_sentence = self.generate_text_from_concepts(concepts)
+        else:
+            new_sentence = in_target
+            concepts = []
         if self.return_concepts:
             return concepts, new_sentence
         return new_sentence
 
     def extract_concepts(self, in_text, in_target, n=None, threshold=None):
         if not isinstance(in_target, int):
-            in_target = np.argmax(in_target)
+            if isinstance(in_target, (torch.Tensor, np.ndarray)):
+                in_target = np.argmax(in_target)
+            else:
+                raise ValueError("unsupported in_target of {}".format(type(in_target)))
         # extract concepts
-        concepts = self.extractor(in_text, label_idx=in_target, threshold=threshold)
+        concepts = self.extractor(in_text, label_idx=in_target, n=n, threshold=threshold)
         if self.antonymize:
             concepts = list(set([self.antonymizer(c) for c in concepts]))
         # reomve punctuation
