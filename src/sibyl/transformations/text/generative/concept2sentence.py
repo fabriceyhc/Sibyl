@@ -86,10 +86,7 @@ class Concept2Sentence(AbstractTransformation):
 
     def extract_concepts(self, in_text, in_target, n=None, threshold=None):
         if not isinstance(in_target, int):
-            if isinstance(in_target, (torch.Tensor, np.ndarray)):
-                in_target = np.argmax(in_target)
-            else:
-                raise ValueError("unsupported in_target of {}".format(type(in_target)))
+            in_target = np.argmax(in_target)                
         # extract concepts
         concepts = self.extractor(in_text, label_idx=in_target, n=n, threshold=threshold)
         if self.antonymize:

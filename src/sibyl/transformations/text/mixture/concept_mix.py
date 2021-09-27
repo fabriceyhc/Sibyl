@@ -87,7 +87,7 @@ class ConceptMix(AbstractBatchTransformation):
 
         # convert to numpy if not already
         if type(data) == list:
-            data = [x.encode('utf-8') for x in data]
+            data = [str(x).encode('utf-8') for x in data]
             data = np.array(data, dtype=np.string_)
         if type(targets) == list:
             if type(targets[0]) == np.ndarray:
