@@ -1,15 +1,23 @@
 import numpy as np
+import torch
+
+def already_ohe(y):
+    if len(y.shape) <= 1:
+        return False
+    return (y.sum(axis=1)-np.ones(y.shape[0])).sum() == 0
 
 def one_hot_encode(y, nb_classes):
-    if isinstance(y, np.ndarray):
+    if isinstance(y, (np.ndarray, torch.Tensor)):
         if len(y.shape) == 1:
-            y = np.expand_dims(y, 0)
+            y = np.expand_dims(y, 0)   
     else:
         y = np.expand_dims(np.array(y), 0)
-    if y.shape[-1] == nb_classes:
+    try:
+        res = np.eye(nb_classes)[y.reshape(-1)]
+        res = res.reshape(list(y.shape)+[nb_classes]).squeeze()
+        return res
+    except:
         return y
-    res = np.eye(nb_classes)[y.reshape(-1)]
-    return res.reshape(list(y.shape)+[nb_classes]).squeeze()
 
 def soften_label(y, num_classes=None):
     if not num_classes:
@@ -58,3 +66,19 @@ def smooth_label(y, factor=0.1):
     y = y * (1. - factor)
     y = y + (factor / y.shape[-1])
     return y
+
+# labels1 = [0, 1]
+# labels2 = np.array([0, 1])
+
+# hard_label_int   = 3
+# hard_labels_list = [0,1,2,3]
+# hard_labels_arr  = np.array([0,1,2,3])
+# soft_labels_arr  = np.array([0.45035461, 0., 0., 0.54964539])
+
+# print(one_hot_encode(labels1, 2))
+# print(one_hot_encode(labels2, 2))
+
+# print(one_hot_encode(hard_label_int, 4))
+# print(one_hot_encode(hard_labels_list, 4))
+# print(one_hot_encode(hard_labels_arr, 4))
+# print(one_hot_encode(soft_labels_arr, 4))

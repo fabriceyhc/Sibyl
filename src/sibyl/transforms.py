@@ -71,6 +71,7 @@ import torch
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+import traceback
 
 from .utils import *
 from .transformations.utils import *
@@ -402,77 +403,47 @@ class SibylCollator:
         else:
             text = [[x[self.sentence1_key], x[self.sentence2_key]] for x in batch]
         labels = [x['label'] for x in batch]
-        if torch.rand(1) < self.transform_prob:
-            if self.transform:
-                if 'AbstractBatchTransformation' in self.transform.__class__.__bases__[0].__name__:
-                    text, labels = self.transform(
-                        (text, labels), 
-                        self.target_pairs,   
-                        self.target_prob,
-                        self.num_classes
-                    )
+        try:
+            if torch.rand(1) < self.transform_prob:
+                if self.transform:
+                    if 'AbstractBatchTransformation' in self.transform.__class__.__bases__[0].__name__:
+                        text, labels = self.transform(
+                            (text, labels), 
+                            self.target_pairs,   
+                            self.target_prob,
+                            self.num_classes
+                        )
+                    else:
+                        task_config = init_transforms(task_type=self.task_type, 
+                                                      tran_type=self.tran_type, 
+                                                      label_type=self.label_type, 
+                                                      return_metadata=True,
+                                                      dataset=self.dataset,
+                                                      transforms=[self.transform]).to_dict(orient='records')[0]
+                        new_text, new_labels = [], []
+                        for X, y in zip(text, labels):
+                            X, y = self.transform.transform_Xy(X, y, task_config)
+                            new_text.append(X)
+                            new_labels.append(y)           
+                        text = new_text   
+                        labels = new_labels     
                 else:
-                    task_config = init_transforms(task_type=self.task_type, 
-                                                  tran_type=self.tran_type, 
-                                                  label_type=self.label_type, 
-                                                  return_metadata=True,
-                                                  dataset=self.dataset,
-                                                  transforms=[self.transform]).to_dict(orient='records')[0]
-                    new_text, new_labels = [], []
-                    for X, y in zip(text, labels):
-                        X, y = self.transform.transform_Xy(X, y, task_config)
-                        new_text.append(X)
-                        new_labels.append(y)           
-                    text = new_text   
-                    labels = new_labels     
-            else:
-                new_text, new_labels, trans = [], [], []
-                for _ in range(self.num_outputs):
-                    for X, y in zip(text, labels): 
-                        t_trans = []
-                        
-                        num_tries = 0
-                        num_INV_applied = 0
-                        while num_INV_applied < self.num_sampled_INV:
-                            if num_tries > 25:
-                                break
-                            t_df   = self.transforms_df[self.transforms_df['tran_type']=='INV'].sample(1)
-                            t_fn   = t_df['tran_fn'].iloc[0]
-                            t_name = t_df['transformation'].iloc[0]  
-                            t_config = t_df.to_dict(orient='records')[0]
-                            if t_name in trans:
-                                continue
-                            try:
-                                X, y, meta = t_fn.transform_Xy(X, y, t_config)
-                            except Exception as e:
-                                meta = {"change":False}
-                                print(e)
-                            if self.one_hot:
-                                y = one_hot_encode(y, self.num_classes)
-                            if meta['change']:
-                                num_INV_applied += 1
-                                t_trans.append(t_name)
-                            num_tries += 1
-
-                        num_tries = 0
-                        num_SIB_applied = 0       
-                        while num_SIB_applied < self.num_sampled_SIB:
-                            if num_tries > 25:
-                                break
-                            t_df   = self.transforms_df[self.transforms_df['tran_type']=='SIB'].sample(1)
-                            t_fn   = t_df['tran_fn'].iloc[0]
-                            t_name = t_df['transformation'].iloc[0]   
-                            t_config = t_df.to_dict(orient='records')[0]  
-                            if t_name in trans:
-                                continue
-                            if 'AbstractBatchTransformation' in t_fn.__class__.__bases__[0].__name__:
-                                Xs, ys = sample_Xy(text, labels, num_sample=1)
-                                Xs.append(X); ys.append(y) 
-                                # Xs = [str(x) for x in Xs]
-                                ys = [np.squeeze(one_hot_encode(y, self.num_classes)) for y in ys]
-                                (X, y), meta = t_fn((Xs, ys), self.target_pairs, self.target_prob, self.num_classes)
-                                X, y = X[0], y[0]
-                            else:
+                    new_text, new_labels, trans = [], [], []
+                    for _ in range(self.num_outputs):
+                        for X, y in zip(text, labels): 
+                            t_trans = []
+                            
+                            num_tries = 0
+                            num_INV_applied = 0
+                            while num_INV_applied < self.num_sampled_INV:
+                                if num_tries > 25:
+                                    break
+                                t_df   = self.transforms_df[self.transforms_df['tran_type']=='INV'].sample(1)
+                                t_fn   = t_df['tran_fn'].iloc[0]
+                                t_name = t_df['transformation'].iloc[0]  
+                                t_config = t_df.to_dict(orient='records')[0]
+                                if t_name in trans:
+                                    continue
                                 try:
                                     X, y, meta = t_fn.transform_Xy(X, y, t_config)
                                 except Exception as e:
@@ -480,17 +451,51 @@ class SibylCollator:
                                     print(e)
                                 if self.one_hot:
                                     y = one_hot_encode(y, self.num_classes)
-                            if meta['change']:
-                                num_SIB_applied += 1
-                                t_trans.append(t_name)
-                            num_tries += 1
+                                if meta['change']:
+                                    num_INV_applied += 1
+                                    t_trans.append(t_name)
+                                num_tries += 1
 
-                        new_text.append(X)
-                        new_labels.append(y)
-                        trans.append(t_trans)  
-                                  
-                text = new_text   
-                labels = new_labels
+                            num_tries = 0
+                            num_SIB_applied = 0       
+                            while num_SIB_applied < self.num_sampled_SIB:
+                                if num_tries > 25:
+                                    break
+                                t_df   = self.transforms_df[self.transforms_df['tran_type']=='SIB'].sample(1)
+                                t_fn   = t_df['tran_fn'].iloc[0]
+                                t_name = t_df['transformation'].iloc[0]   
+                                t_config = t_df.to_dict(orient='records')[0]  
+                                if t_name in trans:
+                                    continue
+                                if 'AbstractBatchTransformation' in t_fn.__class__.__bases__[0].__name__:
+                                    Xs, ys = sample_Xy(text, labels, num_sample=1)
+                                    Xs.append(X); ys.append(y) 
+                                    # Xs = [str(x) for x in Xs]
+                                    ys = [np.squeeze(one_hot_encode(y, self.num_classes)) for y in ys]
+                                    (X, y), meta = t_fn((Xs, ys), self.target_pairs, self.target_prob, self.num_classes)
+                                    X, y = X[0], y[0]
+                                else:
+                                    try:
+                                        X, y, meta = t_fn.transform_Xy(X, y, t_config)
+                                    except Exception as e:
+                                        meta = {"change":False}
+                                        print(e)
+                                    if self.one_hot:
+                                        y = one_hot_encode(y, self.num_classes)
+                                if meta['change']:
+                                    num_SIB_applied += 1
+                                    t_trans.append(t_name)
+                                num_tries += 1
+
+                            new_text.append(X)
+                            new_labels.append(y)
+                            trans.append(t_trans)  
+                                      
+                    text = new_text   
+                    labels = new_labels
+                    
+        except Exception:
+            traceback.print_exc()
 
         if self.sentence2_key is None:
             text1 = [str(x[0]) if type(x) == list else str(x) for x in text]
@@ -503,16 +508,16 @@ class SibylCollator:
         if self.reduce_mixed and len(labels.shape) >= 2:
             labels = [np.argmax(y) if i == 1 else self.num_classes for (i, y) in zip(np.count_nonzero(labels, axis=-1), labels)]
 
+        if self.one_hot and len(np.array(labels).shape) == 1 and not self.reduce_mixed:
+            labels = torch.nn.functional.one_hot(torch.tensor(labels, dtype=torch.int64), num_classes=self.num_classes)
+
         if self.return_tensors == 'np':
             labels = np.array(labels)
         if self.return_tensors == 'pt':
             labels = torch.tensor(labels)
             if len(labels.shape) == 1:
                 labels = labels.long()
-
-        if self.one_hot and len(labels.shape) == 1 and not self.reduce_mixed:
-            labels = torch.nn.functional.one_hot(labels, num_classes=self.num_classes)
-
+                
         if self.tokenize_fn:
             batch = self.tokenize_fn(text1, text2)
             batch['labels'] = labels
@@ -526,3 +531,19 @@ class SibylCollator:
             else:
                 batch = (text1, text2, labels)
         return batch
+
+def sibyl_dataset_transform(batch):
+    """
+    To be used with datasets.Dataset.map()
+    Example:
+    `
+    updated_dataset = dataset.map(sibyl_dataset_transform, 
+                                  batched=True, 
+                                  batch_size=batch_size)
+    `
+    """
+    new_batch = []
+    for data, target in zip(batch['text'], batch['label']):
+        new_batch.append({'text': data, 'label': target})
+    text, label = sibyl_collator(new_batch)
+    return {"text": text, "label": label}

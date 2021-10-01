@@ -216,7 +216,7 @@ class ConceptMix(AbstractBatchTransformation):
                 new_texts.append(s1)
                 new_targets.append(t1_ohe)
             else:
-                new_text = self.c2s.generate_text_from_concepts(combined_concepts)[0]
+                new_text = self.c2s.generate_text_from_concepts(combined_concepts)
 
                 # transform targets
                 lam = len(concepts1) / len(combined_concepts)
