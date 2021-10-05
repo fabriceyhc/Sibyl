@@ -86,7 +86,7 @@ def init_transforms(task_type=None, tran_type=None, label_type=None, return_meta
             df_all.append(df)
     else:
         for tran in TRANSFORMATIONS:
-            if hasattr(tran, 'dataset'):
+            if hasattr(tran, 'uses_dataset'):
                 t = tran(return_metadata=return_metadata, dataset=dataset)
             else:
                 t = tran(return_metadata=return_metadata)

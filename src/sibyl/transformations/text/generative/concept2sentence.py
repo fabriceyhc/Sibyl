@@ -73,7 +73,7 @@ class Concept2Sentence(AbstractTransformation):
         if self.antonymize:
             self.antonymizer = ChangeAntonym()
     
-    def __call__(self, in_text, in_target=None, n=2, threshold=None):
+    def __call__(self, in_text, in_target=None, n=None, threshold=None):
         concepts = self.extract_concepts(in_text, in_target, n, threshold)
         if concepts:
             new_sentence = self.generate_text_from_concepts(concepts)
@@ -115,7 +115,6 @@ class Concept2Sentence(AbstractTransformation):
         init_configs = [task() for task in self.task_configs]
         df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
-
 
     def transform_Xy(self, X, y, task_config):
 
@@ -254,11 +253,13 @@ class RationalizedKeyphraseExtractor:
                  dataset=None, 
                  device='cpu', 
                  extract='tokens',
+                 randomize=True,
                  remove_stopwords=True):
       
         self.dataset = dataset
         self.device = device
         self.extract = extract
+        self.randomize = randomize
         self.remove_stopwords = remove_stopwords
         self.model = None
         self.tokenizer = None
@@ -277,13 +278,14 @@ class RationalizedKeyphraseExtractor:
             else:
                 print('No model found to provide rationalizations. \
                        Returning standard keyphrase concepts instead.')
-        # else:
-            # print('No dataset name provided. Returning standard keyphrases.')
+        else:
+            self.extract = "concepts"
         self.stops = stopwords.words('english') if self.remove_stopwords else []
 
-    def __call__(self, in_text, label_idx=None, n=None, threshold=None):        
-        if n is None:
-            n = random.randint(2,5)
+    def __call__(self, in_text, label_idx=None, n=None, threshold=None): 
+
+        if self.randomize and n is None:
+            n = np.random.randint(1,5)     
 
         if 'keyphrase' in self.extract:
             keyphrases = extract_keyphrases(in_text, n=10)[0]
@@ -298,6 +300,10 @@ class RationalizedKeyphraseExtractor:
             keyphrases = in_text.split()
     
         if self.interpreter is not None: 
+
+            if self.randomize and threshold is None:
+                threshold = np.random.uniform(0.5, 0.75)
+
             attributions = self.interpreter(text=in_text, index=label_idx)
             tokens, weights = zip(*attributions)
             words, weights = merge_bpe(tokens, weights)
