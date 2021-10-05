@@ -275,9 +275,6 @@ class RationalizedKeyphraseExtractor:
                 self.model = AutoModelForSequenceClassification.from_pretrained(modelId).to(self.device)
                 self.tokenizer = AutoTokenizer.from_pretrained(modelId)
                 self.interpreter = SequenceClassificationExplainer(self.model, self.tokenizer)
-            else:
-                print('No model found to provide rationalizations. \
-                       Returning standard keyphrase concepts instead.')
         else:
             self.extract = "concepts"
         self.stops = stopwords.words('english') if self.remove_stopwords else []
