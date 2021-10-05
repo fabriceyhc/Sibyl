@@ -322,6 +322,7 @@ class SibylCollator:
         tokenize_fn       : tokenizer, if none provided, just returns inputs and targets
         transform         : a particular initialized transform (e.g. TextMix()) to apply to the inputs (overrides random sampling)
         num_outputs       : the number of transformed sentences per input sentence
+        keep_original     : wheter to keep the original (untransformed) sentence in the augmented set; if num_outputs == 1, then false
         num_sampled_INV   : number of uniformly sampled INV transforms to apply upon the inputs 
         num_sampled_SIB   : number of uniformly sampled SIB transforms to apply upon the inputs 
         task_type         : filter on transformations for task type [topic, sentiment]
@@ -344,6 +345,7 @@ class SibylCollator:
                  tokenize_fn=None, 
                  transform=None, 
                  num_outputs=1,
+                 keep_original=True,
                  num_sampled_INV=0, 
                  num_sampled_SIB=0, 
                  dataset=None,
@@ -363,6 +365,7 @@ class SibylCollator:
         self.tokenize_fn = tokenize_fn
         self.transform = transform
         self.num_outputs = num_outputs
+        self.keep_original = keep_original if num_outputs > 1 else false
         self.num_sampled_INV = num_sampled_INV
         self.num_sampled_SIB = num_sampled_SIB
         self.dataset = dataset
@@ -407,12 +410,16 @@ class SibylCollator:
             if torch.rand(1) < self.transform_prob:
                 if self.transform:
                     if 'AbstractBatchTransformation' in self.transform.__class__.__bases__[0].__name__:
-                        text, labels = self.transform(
-                            (text, labels), 
-                            self.target_pairs,   
-                            self.target_prob,
-                            self.num_classes
-                        )
+                        new_text, new_labels = [], []
+                        for _ in range(self.num_outputs):
+                            text, labels = self.transform(
+                                (text, labels), 
+                                self.target_pairs,   
+                                self.target_prob,
+                                self.num_classes
+                            )
+                            new_text.extend(text)
+                            new_labels.extend(labels)
                     else:
                         task_config = init_transforms(task_type=self.task_type, 
                                                       tran_type=self.tran_type, 
@@ -421,12 +428,11 @@ class SibylCollator:
                                                       dataset=self.dataset,
                                                       transforms=[self.transform]).to_dict(orient='records')[0]
                         new_text, new_labels = [], []
-                        for X, y in zip(text, labels):
-                            X, y = self.transform.transform_Xy(X, y, task_config)
-                            new_text.append(X)
-                            new_labels.append(y)           
-                        text = new_text   
-                        labels = new_labels     
+                        for _ in range(self.num_outputs):
+                            for X, y in zip(text, labels):
+                                X, y = self.transform.transform_Xy(X, y, task_config)
+                                new_text.append(X)
+                                new_labels.append(y)               
                 else:
                     new_text, new_labels, trans = [], [], []
                     for _ in range(self.num_outputs):
@@ -490,7 +496,11 @@ class SibylCollator:
                             new_text.append(X)
                             new_labels.append(y)
                             trans.append(t_trans)  
-                                      
+
+                if self.keep_original:
+                    text.extend(new_text)
+                    labels.extend(new_labels)
+                else:                  
                     text = new_text   
                     labels = new_labels
                     
