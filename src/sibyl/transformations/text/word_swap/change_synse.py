@@ -228,7 +228,7 @@ class ChangeAntonym(ChangeSynse):
         super().__init__(synse='antonym', num_to_replace=num_to_replace, return_metadata=False)
         self.return_metadata = return_metadata
         self.task_configs = [
-            SentimentAnalysis(),
+            SentimentAnalysis(tran_type='SIB'),
             TopicClassification(),
             Grammaticality(tran_type='SIB'),
             Similarity(input_idx=[1,0], tran_type='SIB'),
