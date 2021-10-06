@@ -499,6 +499,8 @@ class SibylCollator:
 
                 if self.keep_original:
                     text.extend(new_text)
+                    if self.one_hot:
+                        labels = [one_hot_encode(y, self.num_classes) for y in labels]
                     labels.extend(new_labels)
                 else:                  
                     text = new_text   
@@ -519,7 +521,8 @@ class SibylCollator:
             labels = [np.argmax(y) if i == 1 else self.num_classes for (i, y) in zip(np.count_nonzero(labels, axis=-1), labels)]
 
         if self.one_hot and len(np.array(labels).shape) == 1 and not self.reduce_mixed:
-            labels = torch.nn.functional.one_hot(torch.tensor(labels, dtype=torch.int64), num_classes=self.num_classes)
+            labels = torch.tensor(labels, dtype=torch.int64)
+            labels = torch.nn.functional.one_hot(labels, num_classes=self.num_classes)
 
         if self.return_tensors == 'np':
             labels = np.array(labels)
