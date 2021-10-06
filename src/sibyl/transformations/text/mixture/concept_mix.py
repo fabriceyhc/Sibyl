@@ -18,7 +18,7 @@ class ConceptMix(AbstractBatchTransformation):
                  gen_beam_size=10,
                  text_min_length=10,
                  text_max_length=32,
-                 device='cpu',
+                 device='cuda',
                  task_config=None):
         """
         Initializes the transformation and provides an
