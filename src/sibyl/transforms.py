@@ -411,15 +411,16 @@ class SibylCollator:
                 if self.transform:
                     if 'AbstractBatchTransformation' in self.transform.__class__.__bases__[0].__name__:
                         new_text, new_labels = [], []
-                        for _ in range(self.num_outputs):
-                            text, labels = self.transform(
-                                (text, labels), 
+                        batch = (text, labels)
+                        for _ in tqdm(range(self.num_outputs)):
+                            new_batch = self.transform(
+                                batch, 
                                 self.target_pairs,   
                                 self.target_prob,
                                 self.num_classes
                             )
-                            new_text.extend(text)
-                            new_labels.extend(labels)
+                            new_text.extend(new_batch[0])
+                            new_labels.extend(new_batch[1])
                     else:
                         task_config = init_transforms(task_type=self.task_type, 
                                                       tran_type=self.tran_type, 
@@ -428,15 +429,15 @@ class SibylCollator:
                                                       dataset=self.dataset,
                                                       transforms=[self.transform]).to_dict(orient='records')[0]
                         new_text, new_labels = [], []
-                        for _ in range(self.num_outputs):
-                            for X, y in zip(text, labels):
+                        for _ in tqdm(range(self.num_outputs)):
+                            for X, y in tqdm(zip(text, labels), total=len(labels)):
                                 X, y = self.transform.transform_Xy(X, y, task_config)
                                 new_text.append(X)
                                 new_labels.append(y)               
                 else:
                     new_text, new_labels, trans = [], [], []
                     for _ in range(self.num_outputs):
-                        for X, y in zip(text, labels): 
+                        for X, y in tqdm(zip(text, labels), total=len(labels)): 
                             t_trans = []
                             
                             num_tries = 0
