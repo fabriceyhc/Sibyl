@@ -78,7 +78,7 @@ class Concept2Sentence(AbstractTransformation):
         if concepts:
             new_sentence = self.generate_text_from_concepts(concepts)
         else:
-            new_sentence = in_target
+            new_sentence = in_text
             concepts = []
         if self.return_concepts:
             return concepts, new_sentence
