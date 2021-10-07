@@ -301,7 +301,7 @@ class RationalizedKeyphraseExtractor:
             if self.randomize and threshold is None:
                 threshold = np.random.uniform(0.5, 0.75)
 
-            attributions = self.interpreter(text=in_text, index=label_idx)
+            attributions = self.interpreter(text=in_text, index=label_idx, internal_batch_size=1)
             tokens, weights = zip(*attributions)
             words, weights = merge_bpe(tokens, weights)
             if threshold is not None: 
@@ -419,7 +419,7 @@ def beam_generate_sentences(batch,
         num_beams=num_beams,
         min_length=min_length,
         max_length=max_length,
-    )
+    ).cpu().detach()
     # Use model tokenizer to decode to text.
     generated_sentences = [
         tokenizer.decode(gen_ids.tolist(), skip_special_tokens=True)
