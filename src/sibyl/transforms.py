@@ -365,7 +365,7 @@ class SibylCollator:
         self.tokenize_fn = tokenize_fn
         self.transform = transform
         self.num_outputs = num_outputs
-        self.keep_original = keep_original if num_outputs > 1 else false
+        self.keep_original = keep_original
         self.num_sampled_INV = num_sampled_INV
         self.num_sampled_SIB = num_sampled_SIB
         self.dataset = dataset
