@@ -5,6 +5,7 @@ from ..word_swap.change_synse import ChangeAntonym
 from nltk import ngrams
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
 
 import numpy as np
 import pke
@@ -91,8 +92,6 @@ class Concept2Sentence(AbstractTransformation):
         concepts = self.extractor(in_text, label_idx=in_target, n=n, threshold=threshold)
         if self.antonymize:
             concepts = list(set([self.antonymizer(c) for c in concepts]))
-        # reomve punctuation
-        concepts = [c for c in concepts if c not in string.punctuation]
         return concepts
 
     def generate_text_from_concepts(self, concepts):
@@ -254,7 +253,8 @@ class RationalizedKeyphraseExtractor:
                  device='cpu', 
                  extract='tokens',
                  randomize=True,
-                 remove_stopwords=True):
+                 remove_stopwords=True,
+                 lemmatizer = None):
       
         self.dataset = dataset
         self.device = device
@@ -264,6 +264,7 @@ class RationalizedKeyphraseExtractor:
         self.model = None
         self.tokenizer = None
         self.interpreter = None
+        self.lemmatizer = WordNetLemmatizer() if lemmatizer is None else lemmatizer
 
         if dataset is not None:
             api = HfApi()
@@ -297,7 +298,6 @@ class RationalizedKeyphraseExtractor:
             keyphrases = in_text.split()
     
         if self.interpreter is not None: 
-
             if self.randomize and threshold is None:
                 threshold = np.random.uniform(0.5, 0.75)
 
@@ -320,9 +320,23 @@ class RationalizedKeyphraseExtractor:
                 keyphrase_attributions.append((keyphrase, keyphrase_weight / len(keyphrase_tokens)))
             keyphrase_attributions.sort(key = lambda x: x[-1], reverse=True) 
             if threshold is not None:
-                return list(set([x[0].lower() for x in keyphrase_attributions if x[1] >= threshold]))
-            return list(set([k[0].lower() for k in keyphrase_attributions[:n]]))
-        return list(set([x.lower() for x in keyphrases[:n]]))
+                concepts = list(set([x[0].lower() for x in keyphrase_attributions if x[1] >= threshold]))
+            else: 
+                concepts = list(set([k[0].lower() for k in keyphrase_attributions[:n]]))
+        else:
+            concepts = list(set([x.lower() for x in keyphrases[:n]]))
+
+        # cleanup concepts ############################################
+        
+        # remove punctuations + single characters
+        concept_depunct = [c.translate(str.maketrans('', '', string.punctuation)) for c in concepts]
+        concepts = [c1 for c1, c2 in zip(concepts, concept_depunct) if len(c2) > 1]
+        
+        # remove matching lemmas
+        concept_lemmas = [self.lemmatizer.lemmatize(c) for c in concepts]
+        concepts = [c for i, c in enumerate(concepts) if self.lemmatizer.lemmatize(c) not in concept_lemmas[:i]]
+
+        return concepts
 
 ###########################
 ## Miscellaneous Helpers ##
