@@ -23,7 +23,7 @@ from transformers import (
     AutoModelForSequenceClassification,
 )
 from huggingface_hub import HfApi
-from transformers_interpret import SequenceClassificationExplainer
+from .sequence_classification import SequenceClassificationExplainer
 
 class Concept2Sentence(AbstractTransformation):
     """

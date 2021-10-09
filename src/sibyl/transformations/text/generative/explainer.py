@@ -6,7 +6,6 @@ from typing import List, Tuple, Union
 import torch
 from transformers import PreTrainedModel, PreTrainedTokenizer
 
-
 class BaseExplainer(ABC):
     def __init__(
         self,
@@ -124,8 +123,8 @@ class BaseExplainer(ABC):
             in_text1 = text
             in_text2 = None
 
-        text_ids = self.tokenizer(in_text1, in_text2, add_special_tokens=False)['input_ids']
-        input_ids = self.tokenizer(in_text1, in_text2, add_special_tokens=True)['input_ids']
+        text_ids = self.tokenizer(in_text1, in_text2, add_special_tokens=False, truncation=True, max_length=256)['input_ids']
+        input_ids = self.tokenizer(in_text1, in_text2, add_special_tokens=True, truncation=True, max_length=256)['input_ids']
 
         # if no special tokens were added
         if len(text_ids) == len(input_ids):

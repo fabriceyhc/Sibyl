@@ -5,7 +5,8 @@ import torch
 from captum.attr import visualization as viz
 from torch.nn.modules.sparse import Embedding
 from transformers import PreTrainedModel, PreTrainedTokenizer
-from transformers_interpret import BaseExplainer, LIGAttributions
+from .explainer import BaseExplainer
+from transformers_interpret import LIGAttributions
 from transformers_interpret.errors import (
     AttributionTypeNotSupportedError,
     InputIdsNotCalculatedError,
@@ -34,7 +35,6 @@ class SequenceClassificationExplainer(BaseExplainer):
 
 
     """
-
     def __init__(
         self,
         model: PreTrainedModel,
@@ -97,7 +97,7 @@ class SequenceClassificationExplainer(BaseExplainer):
         return id2label, label2id
 
     def encode(self, text: str = None) -> list:
-        return self.tokenizer.encode(text, add_special_tokens=False)
+        return self.tokenizer.encode(text, add_special_tokens=False, truncation=True, max_length=256)
 
     def decode(self, input_ids: torch.Tensor) -> list:
         "Decode 'input_ids' to string using tokenizer"
@@ -272,7 +272,6 @@ class SequenceClassificationExplainer(BaseExplainer):
                 embeddings = self.word_embeddings
 
         self.text = self._clean_text(text)
-
         self._calculate_attributions(
             embeddings=embeddings, index=index, class_name=class_name
         )
@@ -329,5 +328,6 @@ class SequenceClassificationExplainer(BaseExplainer):
         s += f"\n\ttokenizer={self.tokenizer.__class__.__name__},"
         s += f"\n\tattribution_type='{self.attribution_type}',"
         s += ")"
+        print(s)
 
         return s
