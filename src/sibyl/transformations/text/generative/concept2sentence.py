@@ -42,7 +42,7 @@ class Concept2Sentence(AbstractTransformation):
                  extract="token",
                  gen_beam_size=10,
                  text_min_length=10,
-                 text_max_length=32,
+                 text_max_length=128,
                  device='cuda',
                  antonymize=False,
                  return_concepts=False):
