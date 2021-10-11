@@ -45,6 +45,8 @@ class Concept2Sentence(AbstractTransformation):
                  text_max_length=128,
                  device='cuda',
                  antonymize=False,
+                 require_concepts_in_new_text=True,
+                 lemmatizer=None,
                  return_concepts=False):
         self.return_metadata = return_metadata
         self.task_configs = [
@@ -71,6 +73,8 @@ class Concept2Sentence(AbstractTransformation):
                                                         device=self.device)
         self.tokenizer = AutoTokenizer.from_pretrained("sibyl/BART-commongen")
         self.model = AutoModelForSeq2SeqLM.from_pretrained("sibyl/BART-commongen").to(self.device)
+        self.lemmatizer = WordNetLemmatizer().lemmatize if lemmatizer is None else lemmatizer
+        self.require_concepts_in_new_text = require_concepts_in_new_text
         if self.antonymize:
             self.antonymizer = ChangeAntonym()
     
@@ -78,6 +82,17 @@ class Concept2Sentence(AbstractTransformation):
         concepts = self.extract_concepts(in_text, in_target, n, threshold)
         if concepts:
             new_sentence = self.generate_text_from_concepts(concepts)
+            if self.require_concepts_in_new_text:
+                text_lemmas = self.lemmatizer(new_sentence)
+                used_concepts = [c for c in concepts if self.lemmatizer(c) in text_lemmas]
+                if concepts != used_concepts:
+                    while concepts != used_concepts and len(concepts) > 1:
+                        concepts = concepts[:-1]
+                        new_text = self.generate_text_from_concepts(concepts)
+                        text_lemmas = self.lemmatizer(new_text)
+                        used_concepts = [c for c in concepts if self.lemmatizer(c) in text_lemmas]
+                    if concepts == used_concepts:
+                        new_sentence = new_text
         else:
             new_sentence = in_text
             concepts = []
@@ -90,6 +105,8 @@ class Concept2Sentence(AbstractTransformation):
             in_target = np.argmax(in_target)                
         # extract concepts
         concepts = self.extractor(in_text, label_idx=in_target, n=n, threshold=threshold)
+        if not concepts:
+            concepts = RationalizedKeyphraseExtractor(extract="concepts")(in_text, label_idx=in_target, n=2)
         if self.antonymize:
             concepts = list(set([self.antonymizer(c) for c in concepts]))
         return concepts
@@ -97,7 +114,7 @@ class Concept2Sentence(AbstractTransformation):
     def generate_text_from_concepts(self, concepts):
         # prepare batch --> generate sentence from concepts
         batch = {'concepts': [concepts], 'target': ''}
-        new_sentence = beam_generate_sentences(
+        new_sentences = beam_generate_sentences(
             batch,
             self.model,
             self.tokenizer,
@@ -106,9 +123,9 @@ class Concept2Sentence(AbstractTransformation):
             max_length=self.text_max_length,
             device=self.device
         )
-        if len(new_sentence) == 1:
-            return new_sentence[0]
-        return new_sentence
+        if len(new_sentences) == 1:
+            return new_sentences[0]
+        return new_sentences
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
         init_configs = [task() for task in self.task_configs]
@@ -264,12 +281,12 @@ class RationalizedKeyphraseExtractor:
         self.model = None
         self.tokenizer = None
         self.interpreter = None
-        self.lemmatizer = WordNetLemmatizer() if lemmatizer is None else lemmatizer
+        self.lemmatizer = WordNetLemmatizer().lemmatize if lemmatizer is None else lemmatizer
 
         if dataset is not None:
             api = HfApi()
             # find huggingface model to provide rationalized output
-            modelIds = api.list_models(filter=("pytorch", "dataset:" + dataset))
+            modelIds = api.list_models(filter=("pytorch", "dataset:" + dataset, "sibyl"))
             if modelIds:
                 modelId = getattr(modelIds[0], 'modelId')
                 print('Using ' + modelId + ' to rationalize keyphrase selections.')
@@ -333,8 +350,8 @@ class RationalizedKeyphraseExtractor:
         concepts = [c1 for c1, c2 in zip(concepts, concept_depunct) if len(c2) > 1]
         
         # remove matching lemmas
-        concept_lemmas = [self.lemmatizer.lemmatize(c) for c in concepts]
-        concepts = [c for i, c in enumerate(concepts) if self.lemmatizer.lemmatize(c) not in concept_lemmas[:i]]
+        concept_lemmas = [self.lemmatizer(c) for c in concepts]
+        concepts = [c for i, c in enumerate(concepts) if self.lemmatizer(c) not in concept_lemmas[:i]]
 
         return concepts
 
