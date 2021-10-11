@@ -19,6 +19,7 @@ class ConceptMix(AbstractBatchTransformation):
                  text_min_length=10,
                  text_max_length=32,
                  device='cuda',
+                 generation_type='disjoint',
                  task_config=None):
         """
         Initializes the transformation and provides an
@@ -50,6 +51,9 @@ class ConceptMix(AbstractBatchTransformation):
                         text_min_length = text_min_length,
                         text_max_length = text_max_length,
                         device = device)
+        self.generation_type = generation_type
+        if self.generation_type not in ['joint', 'disjoint']:
+            raise ValueError("Must select a generation type from ['joint', 'disjoin']")
         
     def __call__(self, batch, target_pairs=[], target_prob=1, num_classes=2):
         """
@@ -210,13 +214,31 @@ class ConceptMix(AbstractBatchTransformation):
             concepts1 = self.c2s.extract_concepts(s1, t1_cls)
             concepts2 = self.c2s.extract_concepts(s2, t2_cls)
             combined_concepts = list(set(concepts1 + concepts2))
+
             if not combined_concepts:
                 # if there aren't any concepts extracted
                 # simply append the original sentence and target unchanged
                 new_texts.append(s1)
                 new_targets.append(t1_ohe)
+
             else:
-                new_text = self.c2s.generate_text_from_concepts(combined_concepts)
+                if self.generation_type == 'joint':
+
+                    new_text = self.c2s.generate_text_from_concepts(combined_concepts)
+
+                elif self.generation_type == 'disjoint':
+
+                    if concepts1:
+                        new_text1 = self.c2s.generate_text_from_concepts(concepts1)
+                    else:
+                        new_text1 = s1
+
+                    if not concepts2:
+                        new_text2 = self.c2s.generate_text_from_concepts(concepts2)
+                    else:
+                        new_text2 = s2
+
+                    new_text = new_text1 + " " + new_text2
 
                 # transform targets
                 lam = len(concepts1) / len(combined_concepts)
