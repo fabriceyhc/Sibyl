@@ -45,7 +45,7 @@ class Concept2Sentence(AbstractTransformation):
                  text_max_length=128,
                  device='cuda',
                  antonymize=False,
-                 require_concepts_in_new_text=True,
+                 require_concepts_in_new_text=False,
                  lemmatizer=None,
                  return_concepts=False):
         self.return_metadata = return_metadata
