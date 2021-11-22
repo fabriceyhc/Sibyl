@@ -412,7 +412,7 @@ class SibylCollator:
                     if 'AbstractBatchTransformation' in self.transform.__class__.__bases__[0].__name__:
                         new_text, new_labels = [], []
                         batch = (text, labels)
-                        for _ in tqdm(range(self.num_outputs)):
+                        for _ in range(self.num_outputs):
                             new_batch = self.transform(
                                 batch, 
                                 self.target_pairs,   
@@ -429,15 +429,15 @@ class SibylCollator:
                                                       dataset=self.dataset,
                                                       transforms=[self.transform]).to_dict(orient='records')[0]
                         new_text, new_labels = [], []
-                        for _ in tqdm(range(self.num_outputs)):
-                            for X, y in tqdm(zip(text, labels), total=len(labels)):
+                        for _ in range(self.num_outputs):
+                            for X, y in zip(text, labels):
                                 X, y = self.transform.transform_Xy(X, y, task_config)
                                 new_text.append(X)
                                 new_labels.append(y)               
                 else:
                     new_text, new_labels, trans = [], [], []
                     for _ in range(self.num_outputs):
-                        for X, y in tqdm(zip(text, labels), total=len(labels)): 
+                        for X, y in zip(text, labels): 
                             t_trans = []
                             
                             num_tries = 0
