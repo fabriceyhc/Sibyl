@@ -4,8 +4,6 @@ from .transformations.text.emoji.emojify import Emojify, AddPositiveEmoji, AddNe
 from .transformations.text.emoji.demojify import Demojify, RemovePositiveEmoji, RemoveNegativeEmoji, RemoveNeutralEmoji
 from .transformations.text.negation.remove_negation import RemoveNegation
 from .transformations.text.negation.add_negation import AddNegation
-from .transformations.text.contraction.expand_contractions import ExpandContractions
-from .transformations.text.contraction.contract_contractions import ContractContractions
 from .transformations.text.word_swap.change_number import ChangeNumber
 from .transformations.text.word_swap.change_synse import ChangeSynonym, ChangeAntonym, ChangeHyponym, ChangeHypernym
 from .transformations.text.word_swap.word_deletion import WordDeletion
@@ -13,6 +11,7 @@ from .transformations.text.word_swap.homoglyph_swap import HomoglyphSwap
 from .transformations.text.word_swap.random_swap import RandomSwap
 from .transformations.text.insertion.random_insertion import RandomInsertion
 from .transformations.text.insertion.sentiment_phrase import InsertSentimentPhrase, InsertPositivePhrase, InsertNegativePhrase
+from .transformations.text.insertion.insert_punctuation_marks import InsertPunctuationMarks
 from .transformations.text.links.add_sentiment_link import AddSentimentLink, AddPositiveLink, AddNegativeLink
 from .transformations.text.links.import_link_text import ImportLinkText
 from .transformations.text.entities.change_location import ChangeLocation
@@ -42,6 +41,7 @@ TRANSFORMATIONS = [
     InsertPositivePhrase,
     InsertNegativePhrase,
     RandomInsertion,
+    InsertPunctuationMarks,
     AddPositiveLink,
     AddNegativeLink,
     ImportLinkText,
