@@ -82,7 +82,7 @@ in_text = ["The characters are unlikeable and the script is awful. It's a waste 
            "Touching; Well directed autobiography of a talented young director/producer. A love story with Rabin's assassination in the background. Worth seeing"
 ]
 
-in_target = [[0], [0], [0], [1], [1], [1]] # (imdb dataset 0=negative, 1=positive)
+in_target = [0, 0, 0, 1, 1, 1] # (imdb dataset 0=negative, 1=positive)
 
 new_text, new_target = transform((in_text, in_target), num_classes=2)
 print(new_text[0])
