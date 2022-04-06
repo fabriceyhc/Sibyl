@@ -522,12 +522,16 @@ class SibylCollator:
             labels = [np.argmax(y) if i == 1 else self.num_classes for (i, y) in zip(np.count_nonzero(labels, axis=-1), labels)]
 
         if self.one_hot and len(np.array(labels).shape) == 1 and not self.reduce_mixed:
+            # print([type(l) for l in labels])
+            labels = [one_hot_encode(y, self.num_classes) if isinstance(y, (int, np.int64)) else y for y in labels]
+            # print(labels)
             labels = torch.tensor(labels, dtype=torch.int64)
-            labels = torch.nn.functional.one_hot(labels, num_classes=self.num_classes)
+            # labels = torch.nn.functional.one_hot(labels, num_classes=self.num_classes)
 
         if self.return_tensors == 'np':
             labels = np.array(labels)
         if self.return_tensors == 'pt':
+            # print(labels)
             labels = torch.tensor(labels)
             if len(labels.shape) == 1:
                 labels = labels.long()
