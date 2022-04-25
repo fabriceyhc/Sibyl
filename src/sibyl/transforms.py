@@ -338,6 +338,7 @@ class SibylCollator:
                             the return type of other batch content is controlled by tokenize_fn
         return_text       : the tokenize_fn typically replaces the raw text with the tokenized representation,
                             setting this value to true adds back the raw text for additional use
+        return_trans      : include the provenance of which transforms were applied to a per example
     """
     def __init__(self, 
                  sentence1_key,
@@ -359,7 +360,8 @@ class SibylCollator:
                  reduce_mixed=False,
                  num_classes=2,
                  return_tensors='pt',
-                 return_text=False):
+                 return_text=False,
+                 return_trans=False):
         self.sentence1_key = sentence1_key
         self.sentence2_key = sentence2_key
         self.tokenize_fn = tokenize_fn
@@ -380,6 +382,7 @@ class SibylCollator:
         self.num_classes = num_classes
         self.return_tensors = return_tensors
         self.return_text = return_text
+        self.return_trans = return_trans
         
         if self.transform: 
                 print("SibylCollator initialized with {}".format(transform.__class__.__name__))
@@ -407,10 +410,10 @@ class SibylCollator:
             text = [[x[self.sentence1_key], x[self.sentence2_key]] for x in batch]
         labels = [x['label'] for x in batch]
         try:
+            new_text, new_labels, trans = [], [], []
             if torch.rand(1) < self.transform_prob:
                 if self.transform:
                     if 'AbstractBatchTransformation' in self.transform.__class__.__bases__[0].__name__:
-                        new_text, new_labels = [], []
                         batch = (text, labels)
                         for _ in range(self.num_outputs):
                             new_batch = self.transform(
@@ -421,6 +424,7 @@ class SibylCollator:
                             )
                             new_text.extend(new_batch[0])
                             new_labels.extend(new_batch[1])
+                            trans.append([self.transform.__name__])
                     else:
                         task_config = init_transforms(task_type=self.task_type, 
                                                       tran_type=self.tran_type, 
@@ -428,14 +432,13 @@ class SibylCollator:
                                                       return_metadata=True,
                                                       dataset=self.dataset,
                                                       transforms=[self.transform]).to_dict(orient='records')[0]
-                        new_text, new_labels = [], []
                         for _ in range(self.num_outputs):
                             for X, y in zip(text, labels):
                                 X, y = self.transform.transform_Xy(X, y, task_config)
                                 new_text.append(X)
-                                new_labels.append(y)               
+                                new_labels.append(y)  
+                                trans.append([self.transform.__name__])             
                 else:
-                    new_text, new_labels, trans = [], [], []
                     for _ in range(self.num_outputs):
                         for X, y in zip(text, labels): 
                             t_trans = []
@@ -522,16 +525,12 @@ class SibylCollator:
             labels = [np.argmax(y) if i == 1 else self.num_classes for (i, y) in zip(np.count_nonzero(labels, axis=-1), labels)]
 
         if self.one_hot and len(np.array(labels).shape) == 1 and not self.reduce_mixed:
-            # print([type(l) for l in labels])
             labels = [one_hot_encode(y, self.num_classes) if isinstance(y, (int, np.int64)) else y for y in labels]
-            # print(labels)
             labels = torch.tensor(labels, dtype=torch.int64)
-            # labels = torch.nn.functional.one_hot(labels, num_classes=self.num_classes)
 
         if self.return_tensors == 'np':
             labels = np.array(labels)
         if self.return_tensors == 'pt':
-            # print(labels)
             labels = torch.tensor(labels)
             if len(labels.shape) == 1:
                 labels = labels.long()
@@ -545,9 +544,16 @@ class SibylCollator:
                 batch['text'] = text
         else:
             if self.sentence2_key is None:
-                batch = (text1, labels)
+                if self.return_trans:
+                    batch = (text1, labels, trans)
+                else:
+                    batch = (text1, labels)
+
             else:
-                batch = (text1, text2, labels)
+                if self.return_trans:
+                    batch = (text1, text2, labels, trans)
+                else:
+                    batch = (text1, text2, labels)
         return batch
 
 def sibyl_dataset_transform(batch):
@@ -565,3 +571,30 @@ def sibyl_dataset_transform(batch):
         new_batch.append({'text': data, 'label': target})
     text, label = sibyl_collator(new_batch)
     return {"text": text, "label": label}
+
+
+# import hashlib
+# def sibyl_dataset_transform_w_prov(batch):
+#     """
+#     To be used with datasets.Dataset.map()
+#     Example:
+#     `
+#     updated_dataset = dataset.map(sibyl_dataset_transform_w_prov, 
+#                                   batched=True, 
+#                                   batch_size=batch_size)
+#     `
+#     """
+#     new_batch, text_hashes = [], []
+#     for data, target in zip(batch['text'], batch['label']):
+#         new_batch.append({'text': data, 'label': target})
+#         text_hashes.append(hash_string(data))
+#     new_text, new_label, trans = sibyl_collator(new_batch)
+#     out =  {
+#         "text_id": text_hashes,
+#         "text": batch['text'],
+#         "label": batch['label'],
+#         "new_text": new_text, 
+#         "new_label": new_label, 
+#         "trans": trans
+#     }
+#     return out
