@@ -13,14 +13,27 @@ If you encounter any problems, please open an issue or feel free to contact us:
 - [Miryung Kim](https://web.cs.ucla.edu/~miryung/): Professor, miryung@cs.ucla.edu;
 
 ## How to cite 
-Please refer to our Findings of ACL'22 paper, Sibylvariant Transformations for Robust Text Classification for more details. 
+Please refer to our Findings of ACL'22 paper, [Sibylvariant Transformations for Robust Text Classification](https://aclanthology.org/2022.findings-acl.140.pdf) for more details. 
 
 ### Bibtex  
 ```
-[PENDING]
+@inproceedings{harel-canada-etal-2022-sibylvariant,
+    title = "Sibylvariant Transformations for Robust Text Classification",
+    author = "Harel-Canada, Fabrice  and
+      Gulzar, Muhammad Ali  and
+      Peng, Nanyun  and
+      Kim, Miryung",
+    booktitle = "Findings of the Association for Computational Linguistics: ACL 2022",
+    month = may,
+    year = "2022",
+    address = "Dublin, Ireland",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2022.findings-acl.140",
+    doi = "10.18653/v1/2022.findings-acl.140",
+    pages = "1771--1788",
+    abstract = "The vast majority of text transformation techniques in NLP are inherently limited in their ability to expand input space coverage due to an implicit constraint to preserve the original class label. In this work, we propose the notion of sibylvariance (SIB) to describe the broader set of transforms that relax the label-preserving constraint, knowably vary the expected class, and lead to significantly more diverse input distributions. We offer a unified framework to organize all data transformations, including two types of SIB: (1) Transmutations convert one discrete kind into another, (2) Mixture Mutations blend two or more classes together. To explore the role of sibylvariance within NLP, we implemented 41 text transformations, including several novel techniques like Concept2Sentence and SentMix. Sibylvariance also enables a unique form of adaptive training that generates new input mixtures for the most confused class pairs, challenging the learner to differentiate with greater nuance. Our experiments on six benchmark datasets strongly support the efficacy of sibylvariance for generalization performance, defect detection, and adversarial robustness.",
+}
 ```
-
-DOI Link [PENDING]
 
 # `Sibyl`
 
