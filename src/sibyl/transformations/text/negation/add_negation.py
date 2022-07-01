@@ -7,6 +7,11 @@ import spacy
 import en_core_web_sm
 import numpy as np
 
+try:
+    nltk.data.find('corpora/omw-1.4')
+except LookupError:
+    nltk.download('omw-1.4')
+    
 class AddNegation(AbstractTransformation):
     """
     Defines a transformation that negates a string.
