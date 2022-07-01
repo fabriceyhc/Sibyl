@@ -6,6 +6,7 @@ from pattern import en
 import spacy
 import en_core_web_sm
 import numpy as np
+import nltk
 
 try:
     nltk.data.find('corpora/omw-1.4')
