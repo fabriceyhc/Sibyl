@@ -19,6 +19,7 @@ class ChangeLocation(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.nlp = en_core_web_sm.load()
         self.return_metadata = return_metadata
         self.task_configs = [
@@ -50,8 +51,8 @@ class ChangeLocation(AbstractTransformation):
 
     def _get_loc_name(self):
         """Return a random location name."""
-        loc = np.random.choice(['country', 'nationality', 'city'])
-        return np.random.choice(NAMED_ENTITIES[loc])
+        loc = self.np_random.choice(['country', 'nationality', 'city'])
+        return self.np_random.choice(NAMED_ENTITIES[loc])
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
         init_configs = [task() for task in self.task_configs]

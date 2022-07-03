@@ -1,7 +1,6 @@
 from ..abstract_transformation import *
 from ..tasks import *
 import numpy as np
-import random
 
 class InsertPunctuationMarks(AbstractTransformation):
     """
@@ -23,6 +22,7 @@ class InsertPunctuationMarks(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.PUNCTUATIONS = ['.', ',', '!', '?', ';', ':']
         self.return_metadata = return_metadata
         self.task_configs = [
@@ -55,12 +55,12 @@ class InsertPunctuationMarks(AbstractTransformation):
             return in_text
         words = in_text.split(' ')
         out_text = []
-        q = random.randint(1, int(punc_ratio * len(words) + 1))
-        qs = random.sample(range(0, len(words)), q)
+        q = self.np_random.integers(1, int(punc_ratio * len(words) + 1))
+        qs = self.np_random.permutation(range(0, len(words)))[:q]
 
         for j, word in enumerate(words):
             if j in qs:
-                out_text.append(self.PUNCTUATIONS[random.randint(0, len(self.PUNCTUATIONS)-1)])
+                out_text.append(self.PUNCTUATIONS[self.np_random.integers(0, len(self.PUNCTUATIONS)-1)])
                 out_text.append(word)
             else:
                 out_text.append(word)

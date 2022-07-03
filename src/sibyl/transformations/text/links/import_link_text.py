@@ -26,7 +26,7 @@ class ImportLinkText(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
-        
+        super().__init__() 
         # https://gist.github.com/uogbuji/705383#gistcomment-2250605
         self.URL_REGEX = re.compile(r'(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?\xab\xbb\u201c\u201d\u2018\u2019]))')
         self.return_metadata = return_metadata

@@ -1,5 +1,6 @@
 from ..abstract_transformation import *
 from ..tasks import *
+from ....config import *
 from ..word_swap.change_synse import ChangeAntonym
 
 from nltk import ngrams
@@ -9,7 +10,6 @@ from nltk.stem import WordNetLemmatizer
 
 import numpy as np
 import pke
-import random
 import itertools
 import string
  
@@ -24,6 +24,16 @@ from transformers import (
 )
 from huggingface_hub import HfApi
 from .sequence_classification import SequenceClassificationExplainer
+
+# for reproducibility
+torch.manual_seed(SIBYL_SEED)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(SIBYL_SEED)
+torch.use_deterministic_algorithms(True)
+torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.deterministic = True
+
+np_random = np.random.default_rng(seed=SIBYL_SEED)
 
 class Concept2Sentence(AbstractTransformation):
     """
@@ -48,6 +58,7 @@ class Concept2Sentence(AbstractTransformation):
                  require_concepts_in_new_text=False,
                  lemmatizer=None,
                  return_concepts=False):
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -240,7 +251,7 @@ def extract_ngrams(in_text,
 
 def extract_keyphrases(in_text, n=None):
     if n is None:
-        n = random.randint(2,5)
+        n = np_random.integers(2,5)
  
     # extract key phrases
     pos = {'NOUN', 'PROPN', 'ADJ', 'VERB'}
@@ -254,14 +265,14 @@ def extract_keyphrases(in_text, n=None):
  
 def extract_concepts(in_text, n=None):
     if n is None:
-        n = random.randint(2,5)
+        n = np_random.integers(2,5)
  
     # extract key phrases
     keyphrases = extract_keyphrases(in_text, n)[0]
  
     # distill phrases to concepts
     concepts = set([kp if len(kp.split()) == 1 
-                    else random.sample(kp.split(),1)[0] for kp in keyphrases])
+                    else np_random.choice(kp.split()) for kp in keyphrases])
     return [list(concepts)]
 
 class RationalizedKeyphraseExtractor:
@@ -300,7 +311,7 @@ class RationalizedKeyphraseExtractor:
     def __call__(self, in_text, label_idx=None, n=None, threshold=None): 
 
         if self.randomize and n is None:
-            n = np.random.randint(1,5)     
+            n = np_random.integers(1,5)     
 
         if 'keyphrase' in self.extract:
             keyphrases = extract_keyphrases(in_text, n=10)[0]
@@ -316,7 +327,7 @@ class RationalizedKeyphraseExtractor:
     
         if self.interpreter is not None: 
             if self.randomize and threshold is None:
-                threshold = np.random.uniform(0.5, 0.75)
+                threshold = np_random.uniform(0.5, 0.75)
 
             attributions = self.interpreter(text=in_text, index=label_idx, internal_batch_size=1)
             tokens, weights = zip(*attributions)

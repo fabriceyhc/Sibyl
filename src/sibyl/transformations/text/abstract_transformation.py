@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
 from ..utils import *
+from ...config import *
+import numpy as np
 import pandas as pd
  
 class AbstractTransformation(ABC):
@@ -8,13 +10,12 @@ class AbstractTransformation(ABC):
     to input data. 
     """
 
-    @abstractmethod
     def __init__(self, **kwargs):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
         """
-        pass
+        self.np_random = np.random.default_rng(SIBYL_SEED)
     
     @abstractmethod
     def __call__(self, in_text):

@@ -1,6 +1,5 @@
 from ..abstract_transformation import *
 from ..tasks import *
-import random
 import numpy as np
 
 class HomoglyphSwap(AbstractTransformation):
@@ -24,6 +23,7 @@ class HomoglyphSwap(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -94,11 +94,7 @@ class HomoglyphSwap(AbstractTransformation):
         out_text : str
             The output with random words deleted
         """
-
-        # possibly = [k for k,j in enumerate(in_text) if j in self.homos]
-        # indices = list(np.random.choice(possibly, int(np.ceil(self.change*len(in_text))), replace=False) )
-                # try, catch ValueError ? safer option
-        indices = np.random.choice(len(in_text), int(np.ceil(self.change*len(in_text))), replace=False)
+        indices = self.np_random.choice(len(in_text), int(np.ceil(self.change*len(in_text))), replace=False)
         
         out_text = in_text # deep copy apparently 
         for i in sorted(indices):

@@ -24,6 +24,7 @@ class ChangeName(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         if first_only & last_only:
             raise ValueError("first_only and last_only cannot both be true")
         self.first_only = first_only
@@ -64,11 +65,11 @@ class ChangeName(AbstractTransformation):
 
     def _get_lastname(self):
         """Return a random last name."""
-        return np.random.choice(PERSON_NAMES["last"])
+        return self.np_random.choice(PERSON_NAMES["last"])
 
     def _get_firstname(self):
         """Return a random first name."""
-        return np.random.choice(PERSON_NAMES["first"])
+        return self.np_random.choice(PERSON_NAMES["first"])
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
         init_configs = [task() for task in self.task_configs]

@@ -28,7 +28,7 @@ class AddSentimentLink(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
-        
+        super().__init__() 
         self.url = url
         if self.url is None:
             self.url = 'https://www.dictionary.com/browse/'
@@ -42,8 +42,8 @@ class AddSentimentLink(AbstractTransformation):
         cur_path = os.path.dirname(os.path.realpath(__file__))
         pos_path = os.path.join(cur_path, '../data/opinion-lexicon-English/positive-words.txt')
         neg_path = os.path.join(cur_path, '../data/opinion-lexicon-English/negative-words.txt')
-        self.pos_words = pd.read_csv(pos_path, skiprows=30, names=['word'], encoding='latin-1')
-        self.neg_words = pd.read_csv(neg_path, skiprows=30, names=['word'], encoding='latin-1')
+        self.pos_words = pd.read_csv(pos_path, skiprows=30, names=['word'], encoding='latin-1')['word'].to_list()
+        self.neg_words = pd.read_csv(neg_path, skiprows=30, names=['word'], encoding='latin-1')['word'].to_list()
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(tran_type='SIB'),
@@ -60,9 +60,9 @@ class AddSentimentLink(AbstractTransformation):
     def __call__(self, in_text):
         if self.default_url:
             if 'positive' in self.sentiment:
-                word = self.pos_words.sample(1)['word'].iloc[0]
+                word = self.np_random.choice(self.pos_words)
             if 'negative' in self.sentiment:
-                word = self.neg_words.sample(1)['word'].iloc[0]
+                word = self.np_random.choice(self.neg_words)
             link = 'https://www.dictionary.com/browse/' + word
         else:
             link = self.url
@@ -143,7 +143,7 @@ class AddPositiveLink(AddSentimentLink):
 
     def __call__(self, in_text):
         if self.default_url:
-            word = self.pos_words.sample(1)['word'].iloc[0]
+            word = self.np_random.choice(self.pos_words)
             link = 'https://www.dictionary.com/browse/' + word
         else:
             link = self.url
@@ -221,7 +221,7 @@ class AddNegativeLink(AddSentimentLink):
 
     def __call__(self, in_text):
         if self.default_url:
-            word = self.neg_words.sample(1)['word'].iloc[0]
+            word = self.np_random.choice(self.neg_words)
             link = 'https://www.dictionary.com/browse/' + word
         else:
             link = self.url

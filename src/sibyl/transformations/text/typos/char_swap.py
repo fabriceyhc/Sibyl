@@ -18,6 +18,7 @@ class RandomCharSwap(AbstractTransformation):
             the type of task you wish to transform the
             input towards
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -46,7 +47,7 @@ class RandomCharSwap(AbstractTransformation):
             The output with random chars pairs swapped
         """
         if len(in_text)-1 > 0:
-            idx = sorted(np.random.choice(len(in_text)-1, n, replace=False))
+            idx = sorted(self.np_random.choice(len(in_text)-1, n, replace=False))
             for i in idx:
                 in_text = in_text[:i] + in_text[i + 1] + in_text[i] + in_text[i + 2 :]
         return in_text

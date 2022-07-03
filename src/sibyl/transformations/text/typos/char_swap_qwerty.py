@@ -20,6 +20,7 @@ class RandomSwapQwerty(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -81,7 +82,7 @@ class RandomSwapQwerty(AbstractTransformation):
         """
         if len(in_text) > 0:
             assert n <= len(in_text), "n is too large. n should be <= "+str(len(in_text))
-            idx = sorted(np.random.choice(len(in_text), n, replace=False))
+            idx = sorted(self.np_random.choice(len(in_text), n, replace=False))
             for i in idx:
                 in_text = in_text[:i] + self.get_adjacent_letter(in_text[i]) + in_text[i + 1 :]   
         return in_text
@@ -133,4 +134,4 @@ class RandomSwapQwerty(AbstractTransformation):
                 ans = adjacent_keys
         else:
             return s
-        return np.random.choice(ans)
+        return self.np_random.choice(ans)

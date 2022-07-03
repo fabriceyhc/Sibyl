@@ -28,6 +28,7 @@ class TextMix(AbstractBatchTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(tran_type='SIB'),
@@ -96,7 +97,7 @@ class TextMix(AbstractBatchTransformation):
         for pair in target_pairs:
             
             # skip targeted transformation target_prob percent of the time
-            use_targets = np.random.uniform() < target_prob
+            use_targets = self.np_random.uniform() < target_prob
             if not use_targets:
                 continue
                 
@@ -112,7 +113,7 @@ class TextMix(AbstractBatchTransformation):
                 continue
                 
             # enforce source==target array size via sampling
-            tt_idx = np.random.choice(np.arange(len(t_idx)), size=len(s_idx), replace=True)
+            tt_idx = self.np_random.choice(np.arange(len(t_idx)), size=len(s_idx), replace=True)
             t_idx = t_idx[tt_idx]
             
             # create concatenated data
@@ -129,7 +130,7 @@ class TextMix(AbstractBatchTransformation):
             
         ex_idx = list(itertools.chain(*ex_idx))
         s_idx = [i for i in idx if i not in ex_idx]
-        t_idx = np.random.choice(np.arange(len(s_idx)), size=len(s_idx), replace=True)
+        t_idx = self.np_random.choice(np.arange(len(s_idx)), size=len(s_idx), replace=True)
 
         if s_idx:
             textmix = concat_text(data[s_idx], data[t_idx])
@@ -159,6 +160,7 @@ class TextMix(AbstractBatchTransformation):
         df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
+
 class SentMix(AbstractBatchTransformation):
     """
     Concatenates two texts together and then mixes the
@@ -176,6 +178,7 @@ class SentMix(AbstractBatchTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(tran_type='SIB'),
@@ -223,7 +226,7 @@ class SentMix(AbstractBatchTransformation):
         new_data, new_targets = TextMix()(batch, target_pairs, target_prob, num_classes)
 
         # mix sentences
-        sent_shuffle_ = np.vectorize(sent_shuffle)
+        sent_shuffle_ = np.vectorize(self.sent_shuffle)
         new_data = np.apply_along_axis(sent_shuffle_, 0, new_data).tolist()
 
         out_text = (new_data, new_targets)
@@ -233,6 +236,11 @@ class SentMix(AbstractBatchTransformation):
             metadata = {'change': True}
             return out_text, metadata
         return out_text
+
+    def sent_shuffle(self, string):
+        X = nltk.tokenize.sent_tokenize(str(string))
+        self.np_random.shuffle(X)
+        return ' '.join(X)
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
         init_configs = [task() for task in self.task_configs]
@@ -256,6 +264,7 @@ class WordMix(AbstractBatchTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(tran_type='SIB'),
@@ -303,7 +312,7 @@ class WordMix(AbstractBatchTransformation):
         new_data, new_targets = TextMix()(batch, target_pairs, target_prob, num_classes)
 
         # mix words
-        word_shuffle_ = np.vectorize(word_shuffle)
+        word_shuffle_ = np.vectorize(self.word_shuffle)
         new_data = np.apply_along_axis(word_shuffle_, 0, new_data).tolist()
 
         out_text = (new_data, new_targets)
@@ -313,6 +322,11 @@ class WordMix(AbstractBatchTransformation):
             metadata = {'change': True}
             return out_text, metadata
         return out_text
+
+    def word_shuffle(self, string):
+        X = str(string).split(" ")
+        self.np_random.shuffle(X)
+        return ' '.join(X)
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
         init_configs = [task() for task in self.task_configs]
@@ -373,16 +387,6 @@ def concat_text(np_char1, np_char2):
     out_text = np.char.add(np_char1, sep)
     out_text = np.char.add(out_text, np_char2)
     return out_text
-
-def sent_shuffle(string):
-    X = nltk.tokenize.sent_tokenize(str(string))
-    np.random.shuffle(X)
-    return ' '.join(X)
-
-def word_shuffle(string):
-    X = str(string).split(" ")
-    np.random.shuffle(X)
-    return ' '.join(X)
 
 def find_value_idx(array, value):
     return np.asarray(array == value).nonzero()[0]

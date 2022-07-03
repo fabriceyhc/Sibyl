@@ -29,6 +29,7 @@ class ChangeNumber(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.multiplier = multiplier
         self.replacement = replacement
         self.nlp = en_core_web_sm.load()

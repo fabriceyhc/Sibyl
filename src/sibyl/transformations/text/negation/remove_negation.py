@@ -25,7 +25,7 @@ class RemoveNegation(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
-        
+        super().__init__() 
         self.nlp = en_core_web_sm.load()
         self.return_metadata = return_metadata
         self.task_configs = [

@@ -1,7 +1,6 @@
 from ..abstract_transformation import *
 from ..tasks import *
 import numpy as np
-import random
 import re
 
 class RandomSwap(AbstractTransformation):
@@ -22,6 +21,7 @@ class RandomSwap(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.n=n
         self.return_metadata = return_metadata
         self.task_configs = [
@@ -50,7 +50,7 @@ class RandomSwap(AbstractTransformation):
         """
         new_words = in_text.split()
         for _ in range(self.n):
-            new_words = swap_word(new_words)
+            new_words = self.swap_word(new_words)
         out_text = ' '.join(new_words)
         return out_text
 
@@ -105,16 +105,16 @@ class RandomSwap(AbstractTransformation):
             return X_out, y_out, metadata
         return X_out, y_out
 
-def swap_word(new_words):
-    if len(new_words)-1 <= 0:
-        return new_words
-    random_idx_1 = random.randint(0, len(new_words)-1)
-    random_idx_2 = random_idx_1
-    counter = 0
-    while random_idx_2 == random_idx_1:
-        random_idx_2 = random.randint(0, len(new_words)-1)
-        counter += 1
-        if counter > 3:
+    def swap_word(self, new_words):
+        if len(new_words)-1 <= 0:
             return new_words
-    new_words[random_idx_1], new_words[random_idx_2] = new_words[random_idx_2], new_words[random_idx_1] 
-    return new_words
+        random_idx_1 = self.np_random.integers(0, len(new_words)-1)
+        random_idx_2 = random_idx_1
+        counter = 0
+        while random_idx_2 == random_idx_1:
+            random_idx_2 = self.np_random.integers(0, len(new_words)-1)
+            counter += 1
+            if counter > 3:
+                return new_words
+        new_words[random_idx_1], new_words[random_idx_2] = new_words[random_idx_2], new_words[random_idx_1] 
+        return new_words

@@ -19,6 +19,7 @@ class RandomCharSubst(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -48,9 +49,9 @@ class RandomCharSubst(AbstractTransformation):
         """
         if len(in_text) > 0:
             assert n <= len(in_text), "n is too large. n should be <= "+str(len(in_text))
-            idx = sorted(np.random.choice(len(in_text), n, replace=False))
+            idx = sorted(self.np_random.choice(len(in_text), n, replace=False))
             for i in idx:
-                in_text = in_text[:i] + get_random_letter() + in_text[i + 1 :]
+                in_text = in_text[:i] + self.get_random_letter() + in_text[i + 1 :]
         return in_text
 
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
@@ -90,7 +91,7 @@ class RandomCharSubst(AbstractTransformation):
             return X_out, y_out, metadata
         return X_out, y_out
 
-def get_random_letter():
-    # printable = digits + ascii_letters + punctuation + whitespace
-    return np.random.choice(list(string.printable))
+    def get_random_letter(self):
+        # printable = digits + ascii_letters + punctuation + whitespace
+        return self.np_random.choice(list(string.printable))
 

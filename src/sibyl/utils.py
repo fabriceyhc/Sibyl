@@ -12,6 +12,28 @@ from sklearn.metrics import accuracy_score
 from transformers.trainer_callback import TrainerControl
 import pandas as pd
 
+global SIBYL_SEED
+
+# enable determinism
+def set_sibyl_seed(seed=41):
+    import torch
+    import random
+    import numpy as np
+
+    SIBYL_SEED = seed
+
+    # torch
+    torch.manual_seed(SIBYL_SEED)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(SIBYL_SEED)
+    torch.use_deterministic_algorithms(True)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
+    # python
+    random.seed(SIBYL_SEED)
+    #numpy
+    np.random.seed(SIBYL_SEED)
+
 # data find + save + load
 
 def pkl_save(file, path):
@@ -58,7 +80,8 @@ def find_max_list(lists):
     return max(list_len)
 
 def sample_Xy(text, label, num_sample=1):
-    idx = np.random.randint(0, len(text), num_sample)
+    np_random = np.random.default_rng(seed=SIBYL_SEED)
+    idx = np_random.integers(0, len(text), num_sample)
     return list(np.array(text)[idx]), list(np.array(label)[idx])    
 
 def chunker(seq, size):

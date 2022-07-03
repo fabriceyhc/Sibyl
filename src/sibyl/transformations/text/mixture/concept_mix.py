@@ -32,6 +32,7 @@ class ConceptMix(AbstractBatchTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(tran_type='SIB'),
@@ -110,7 +111,7 @@ class ConceptMix(AbstractBatchTransformation):
         for pair in target_pairs:
             
             # skip targeted transformation target_prob percent of the time
-            use_targets = np.random.uniform() < target_prob
+            use_targets = self.np_random.uniform() < target_prob
             if not use_targets:
                 continue
                 
@@ -126,7 +127,7 @@ class ConceptMix(AbstractBatchTransformation):
                 continue
                 
             # enforce source==target array size via sampling
-            tt_idx = np.random.choice(np.arange(len(t_idx)), size=len(s_idx), replace=True)
+            tt_idx = self.np_random.choice(np.arange(len(t_idx)), size=len(s_idx), replace=True)
             t_idx = t_idx[tt_idx]
             
             # create concatenated data
@@ -142,7 +143,7 @@ class ConceptMix(AbstractBatchTransformation):
             
         ex_idx = list(itertools.chain(*ex_idx))
         s_idx = [i for i in idx if i not in ex_idx]
-        t_idx = np.random.choice(np.arange(len(s_idx)), size=len(s_idx), replace=True)
+        t_idx = self.np_random.choice(np.arange(len(s_idx)), size=len(s_idx), replace=True)
 
         if s_idx:
             new_text, new_target = self.conmix(data[s_idx], 

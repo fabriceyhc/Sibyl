@@ -2,7 +2,6 @@ from ..abstract_transformation import *
 from ..tasks import *
 from ..tasks import *
 import numpy as np
-import random
 from ..word_swap.change_synse import all_possible_synonyms
 
 class RandomInsertion(AbstractTransformation):
@@ -23,6 +22,7 @@ class RandomInsertion(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.n=n
         self.return_metadata = return_metadata
         self.task_configs = [
@@ -41,7 +41,7 @@ class RandomInsertion(AbstractTransformation):
         new_words = in_text.split()
         if len(new_words) - 1 > 0:
             for _ in range(self.n):
-                add_word(new_words)
+                self.add_word(new_words)
             out_text = ' '.join(new_words)
         else:
             out_text = in_text
@@ -89,18 +89,15 @@ class RandomInsertion(AbstractTransformation):
             return X_out, y_out, metadata
         return X_out, y_out
         
-
-def add_word(new_words):
-    synonyms = []
-    counter = 0
-    while len(synonyms) < 1:
-        random_word = new_words[random.randint(0, len(new_words)-1)]
-        synonyms = all_possible_synonyms(random_word) #get_synonyms(random_word)
-        counter += 1
-        if counter >= 10:
-            return
-    random_synonym = synonyms[0]
-    random_idx = random.randint(0, len(new_words)-1)
-    new_words.insert(random_idx, random_synonym)
-
-
+    def add_word(self, new_words):
+        synonyms = []
+        counter = 0
+        while len(synonyms) < 1:
+            random_word = new_words[self.np_random.integers(0, len(new_words)-1)]
+            synonyms = all_possible_synonyms(random_word) #get_synonyms(random_word)
+            counter += 1
+            if counter >= 10:
+                return
+        random_synonym = synonyms[0]
+        random_idx = self.np_random.integers(0, len(new_words)-1)
+        new_words.insert(random_idx, random_synonym)

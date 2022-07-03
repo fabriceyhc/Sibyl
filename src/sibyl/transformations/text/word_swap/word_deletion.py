@@ -1,6 +1,5 @@
 from ..abstract_transformation import *
 from ..tasks import *
-import random
 
 class WordDeletion(AbstractTransformation):
     """
@@ -21,6 +20,7 @@ class WordDeletion(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.p = p
         self.return_metadata = return_metadata
         self.task_configs = [
@@ -55,13 +55,13 @@ class WordDeletion(AbstractTransformation):
         #randomly delete words with probability p
         new_words = []
         for word in words:
-            r = random.uniform(0, 1)
+            r = self.np_random.uniform(0, 1)
             if r > self.p:
                 new_words.append(word)
 
         #if you end up deleting all words, just return a random word
         if len(new_words) == 0:
-            rand_int = random.randint(0, len(words)-1)
+            rand_int = self.np_random.integers(0, len(words)-1)
             return words[rand_int]
 
         out_text = ' '.join(new_words)

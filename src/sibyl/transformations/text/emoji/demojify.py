@@ -3,7 +3,7 @@ from ..tasks import *
 from emoji_translate import Translator, emoji_lis
 
 class Demojify(AbstractTransformation):
-    def __init__(self, exact_match_only=False, randomize=True, return_metadata=False):
+    def __init__(self, exact_match_only=False, randomize=False, return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
@@ -22,6 +22,7 @@ class Demojify(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),

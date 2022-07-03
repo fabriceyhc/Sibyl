@@ -29,6 +29,7 @@ class AddNegation(AbstractTransformation):
             the type of task you wish to transform the
             input towards
         """
+        super().__init__() 
         self.nlp = en_core_web_sm.load()
         self.return_metadata = return_metadata
         self.task_configs = [

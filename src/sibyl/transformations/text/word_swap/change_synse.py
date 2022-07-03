@@ -2,7 +2,6 @@ from ..abstract_transformation import *
 from ..tasks import *
 import numpy as np
 import re
-import random
 from pattern.en import wordnet
 import nltk
 from nltk.corpus import stopwords
@@ -40,6 +39,7 @@ class ChangeSynse(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.synse = synse
         self.synses = {
             'synonym' : all_possible_synonyms,
@@ -86,7 +86,7 @@ class ChangeSynse(AbstractTransformation):
         new_words = in_text.split(' ').copy()
         random_word_list = list(set(
             [token.text for token in doc if strip_punct(token.text.lower()) not in self.stopwords]))
-        random.shuffle(random_word_list)
+        self.np_random.shuffle(random_word_list)
         num_replaced = 0
         for random_word in random_word_list:
             pos = [token.pos_ for token in doc if random_word in token.text][0]
@@ -96,7 +96,7 @@ class ChangeSynse(AbstractTransformation):
                 pos = None
             options = self.synse_fn(strip_punct(random_word), pos)
             if len(options) >= 1:
-                option = random.choice(list(options))
+                option = self.np_random.choice(list(options))
                 new_words = [option if word == random_word else word for word in new_words]
                 num_replaced += 1
             if num_replaced >= self.num_to_replace:

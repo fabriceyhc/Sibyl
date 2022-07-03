@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from ..utils import *
+from ...config import *
 import pandas as pd
  
 class AbstractBatchTransformation(ABC):
@@ -8,13 +9,12 @@ class AbstractBatchTransformation(ABC):
     to input data. 
     """
 
-    @abstractmethod
     def __init__(self, **kwargs):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
         """
-        pass
+        self.np_random = np.random.default_rng(SIBYL_SEED)
     
     @abstractmethod
     def __call__(self, batch):

@@ -3,7 +3,7 @@ from ..tasks import *
 from emoji_translate import Translator
 
 class Emojify(AbstractTransformation):
-    def __init__(self, exact_match_only=False, randomize=True, return_metadata=False):
+    def __init__(self, exact_match_only=False, randomize=False, return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
@@ -22,6 +22,7 @@ class Emojify(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -141,8 +142,9 @@ class AddEmoji(Emojify):
 
     def sample_emoji_by_polarity(self, p_rng, num=1):
         emojis = self.emo.emojis
-        return emojis[emojis['polarity'].apply(
-            lambda x: p_rng[0] <= x <= p_rng[1])].sample(num)['char'].values.tolist()
+        emojis = emojis[emojis['polarity'].apply(lambda x: p_rng[0] <= x <= p_rng[1])]['char'].to_list()
+        emojis = self.np_random.permutation(emojis)[:num]
+        return emojis
 
 def transform_Xy(self, X, y, task_config):
 

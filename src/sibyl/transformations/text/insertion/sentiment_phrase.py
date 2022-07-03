@@ -1,7 +1,6 @@
 from ..abstract_transformation import *
 from ..tasks import *
 from ..data.phrases import POSITIVE_PHRASES, NEGATIVE_PHRASES
-from random import sample 
 import numpy as np
 
 class InsertSentimentPhrase(AbstractTransformation):
@@ -25,6 +24,7 @@ class InsertSentimentPhrase(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
+        super().__init__() 
         self.sentiment = sentiment
         if self.sentiment.lower() not in ['positive', 'negative']:
             raise ValueError("Sentiment must be 'positive' or 'negative'.")
@@ -46,9 +46,9 @@ class InsertSentimentPhrase(AbstractTransformation):
         Appends a sentiment-laden phrase to a string.
         """
         if 'positive' in self.sentiment:
-        	phrase = sample(POSITIVE_PHRASES,1)[0]
+        	phrase = self.np_random.choice(POSITIVE_PHRASES)
         if 'negative' in self.sentiment:
-        	phrase = sample(NEGATIVE_PHRASES,1)[0]
+        	phrase = self.np_random.choice(NEGATIVE_PHRASES)
         out_text = in_text + " " + phrase
         return out_text
 
@@ -124,7 +124,7 @@ class InsertPositivePhrase(InsertSentimentPhrase):
         ]
 
     def __call__(self, in_text):
-        phrase = sample(POSITIVE_PHRASES,1)[0]
+        phrase = self.np_random.choice(POSITIVE_PHRASES)
         out_text = in_text + " " + phrase
         return out_text
 
@@ -203,7 +203,7 @@ class InsertNegativePhrase(InsertSentimentPhrase):
         ]
 
     def __call__(self, in_text):
-        phrase = sample(NEGATIVE_PHRASES,1)[0]
+        phrase = self.np_random.choice(NEGATIVE_PHRASES)
         out_text = in_text + " " + phrase
         return out_text
 

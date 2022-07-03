@@ -15,5 +15,6 @@ try:
 except LookupError:
     nltk.download('punkt')
 
+from .config import *
 from .transforms import *
 from .utils import *
