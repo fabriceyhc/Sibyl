@@ -16,6 +16,7 @@ class AbstractTransformation(ABC):
         opporunity to supply a configuration if needed
         """
         self.np_random = np.random.default_rng(SIBYL_SEED)
+        self.task_config = None
     
     @abstractmethod
     def __call__(self, in_text):
@@ -30,7 +31,7 @@ class AbstractTransformation(ABC):
         pass
 
     @abstractmethod   
-    def transform_Xy(self, X, y, task_config):
+    def transform_Xy(self, X, y):
         """
         Apply the transformation to a string input 
         and an int target label
@@ -41,10 +42,6 @@ class AbstractTransformation(ABC):
             the input string(s)
         y : int
             the target label
-        task_config : dict
-            the config to determine how exactly the 
-            transformation should be performed.
-            important for the particular label derivation.
 
         Returns
         ----------
@@ -58,10 +55,10 @@ class AbstractTransformation(ABC):
         """
         if isinstance(X, str):
             X = [X]
-        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
-                                                         "amount of {} for the {} task".format(
-                                                            task_config['input_idx'],
-                                                            task_config['task_name']))
+        assert len(X) == len(self.task_config['input_idx']), ("The number of inputs does not match the expected "
+                                                              "amount of {} for the {} task".format(
+                                                               self.task_config['input_idx'],
+                                                               self.task_config['task_name']))
 
 
     @abstractmethod

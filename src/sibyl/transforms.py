@@ -76,7 +76,7 @@ import traceback
 from .utils import *
 from .transformations.utils import *
 
-def init_transforms(task_type=None, tran_type=None, label_type=None, return_metadata=True, dataset=None, transforms=None):
+def init_transforms(task_name=None, tran_type=None, label_type=None, return_metadata=True, dataset=None, transforms=None):
     df_all = []
     if transforms:
         for tran in transforms:
@@ -95,8 +95,8 @@ def init_transforms(task_type=None, tran_type=None, label_type=None, return_meta
             df['tran_fn'] = t
             df_all.append(df)
     df = pd.concat(df_all)
-    if task_type is not None:
-        task_df = df['task_name'] == task_type
+    if task_name is not None:
+        task_df = df['task_name'] == task_name
         df = df[task_df]
     if tran_type is not None:
         tran_df = df['tran_type'] == tran_type
@@ -105,18 +105,31 @@ def init_transforms(task_type=None, tran_type=None, label_type=None, return_meta
         label_df = df['label_type'] == label_type
         df = df[label_df]
     df.reset_index(drop=True, inplace=True)
+
+    # set task_configs
+    new_tran_fns = []
+    for index, row in df.iterrows():
+        task_config = {
+                'task_name' : row['task_name'],
+                'input_idx' : row['input_idx'],
+                'tran_type' : row['tran_type'],
+                'label_type': row['label_type']
+            }
+        row['tran_fn'].task_config = task_config
+        new_tran_fns.append(row['tran_fn'])
+    df['tran_fn'] = new_tran_fns    
     return df
 
 def transform_test_suites(
     test_suites, 
     num_INV_required=1, 
     num_SIB_required=1, 
-    task_type=None, 
+    task_name=None, 
     tran_type=None, 
     label_type=None,
     one_hot=True):
     
-    df = init_transforms(task_type=task_type, tran_type=tran_type, label_type=label_type, meta=True)
+    df = init_transforms(task_name=task_name, tran_type=tran_type, label_type=label_type, meta=True)
 
     new_test_suites = {}
     for i, test_suite in tqdm(test_suites.items()):
@@ -176,8 +189,8 @@ def transform_test_suites(
         
     return new_test_suites
 
-def transform_dataset(dataset, num_transforms=2, task_type=None, tran_type=None, label_type=None):
-    df = init_transforms(task_type=task_type, tran_type=tran_type, label_type=label_type, meta=True)
+def transform_dataset(dataset, num_transforms=2, task_name=None, tran_type=None, label_type=None):
+    df = init_transforms(task_name=task_name, tran_type=tran_type, label_type=label_type, meta=True)
     text, label = dataset['text'], dataset['label'] 
     new_text, new_label, trans = [], [], []
     if tran_type == 'SIB':
@@ -243,12 +256,12 @@ def transform_dataset_INVSIB(
     dataset, 
     num_INV_required=1, 
     num_SIB_required=1, 
-    task_type=None, 
+    task_name=None, 
     tran_type=None, 
     label_type=None,
     one_hot=True):
     
-    df = init_transforms(task_type=task_type, tran_type=tran_type, label_type=label_type, meta=True)
+    df = init_transforms(task_name=task_name, tran_type=tran_type, label_type=label_type, meta=True)
     
     text, label = dataset['text'], dataset['label']
     new_text, new_label, trans = [], [], []
@@ -325,7 +338,7 @@ class SibylCollator:
         keep_original     : wheter to keep the original (untransformed) sentence in the augmented set; if num_outputs == 1, then false
         num_sampled_INV   : number of uniformly sampled INV transforms to apply upon the inputs 
         num_sampled_SIB   : number of uniformly sampled SIB transforms to apply upon the inputs 
-        task_type         : filter on transformations for task type [topic, sentiment]
+        task_name         : filter on transformations for task type [topic, sentiment]
         tran_type         : filter on transformations for tran type [INV, SIB]
         label_type        : filter on transformations for task type [hard, soft]
         one_hot           : whether or not to one-hot-encode the targets
@@ -350,7 +363,7 @@ class SibylCollator:
                  num_sampled_INV=0, 
                  num_sampled_SIB=0, 
                  dataset=None,
-                 task_type=None, 
+                 task_name=None, 
                  tran_type=None, 
                  label_type=None,
                  one_hot=False,
@@ -371,7 +384,7 @@ class SibylCollator:
         self.num_sampled_INV = num_sampled_INV
         self.num_sampled_SIB = num_sampled_SIB
         self.dataset = dataset
-        self.task_type = task_type
+        self.task_name = task_name
         self.tran_type = tran_type
         self.label_type = label_type
         self.one_hot = one_hot
@@ -388,7 +401,7 @@ class SibylCollator:
                 print("SibylCollator initialized with {}".format(transform.__class__.__name__))
                 
         else: 
-            self.transforms_df = init_transforms(task_type=task_type, 
+            self.transforms_df = init_transforms(task_name=task_name, 
                                                  tran_type=tran_type, 
                                                  label_type=label_type, 
                                                  return_metadata=True,
@@ -426,7 +439,7 @@ class SibylCollator:
                             new_labels.extend(new_batch[1])
                             trans.append([self.transform.__name__])
                     else:
-                        task_config = init_transforms(task_type=self.task_type, 
+                        task_config = init_transforms(task_name=self.task_name, 
                                                       tran_type=self.tran_type, 
                                                       label_type=self.label_type, 
                                                       return_metadata=True,
@@ -598,3 +611,82 @@ def sibyl_dataset_transform(batch):
 #         "trans": trans
 #     }
 #     return out
+
+
+# simplified version of SibylCollator
+class SibylTransformer:
+    def __init__(self, task, num_classes=2, multiplier=1, num_INV=1, num_SIB=1):
+        self.task = task
+        self.num_classes = num_classes
+        self.multiplier = multiplier
+        self.num_INV = num_INV
+        self.num_SIB = num_SIB
+        
+        self.tran_df = init_transforms(task_name=self.task)
+        self.INV_fns = self.tran_df[self.tran_df['tran_type']=='INV']['tran_fn'].to_list()
+        self.SIB_fns = self.tran_df[self.tran_df['tran_type']=='SIB']['tran_fn'].to_list()
+        
+    def sample_transform(self, tran_type):
+        if tran_type == 'INV':
+            return np_random.choice(self.INV_fns)
+        else:
+            return np_random.choice(self.SIB_fns)
+        
+    def apply_transform(self, batch, transform):
+        if is_batched(transform):
+            (new_text, new_labels), meta = transform(
+                batch, 
+                num_classes=self.num_classes
+            )
+            new_labels = [np.squeeze(one_hot_encode(y, self.num_classes)) for y in new_labels]
+            return new_text, new_labels
+        else:
+            new_text, new_labels = [], []
+            for X, y in zip(*batch):
+                X, y, meta = transform.transform_Xy(X, y)
+                new_text.append(X)
+                new_labels.append(y)  
+            return new_text, new_labels       
+                    
+    def __call__(self, batch):
+        new_text, new_labels = [], []
+        for _ in range(self.multiplier):
+            num_INV_applied, num_SIB_applied = 0, 0
+            while num_INV_applied < self.num_INV or num_SIB_applied < self.num_SIB:
+                
+                # sample transform
+                sample_prob = np.array([self.num_INV - num_INV_applied, self.num_SIB - num_SIB_applied])
+                sample_prob = sample_prob / sample_prob.sum()
+                tran_type = np_random.choice(['INV', 'SIB'], p=sample_prob)
+                transform = self.sample_transform(tran_type)
+                
+                # apply transform
+                text_, labels_ = self.apply_transform(batch, transform)
+                
+                new_text.extend(text_)
+                new_labels.extend(labels_)
+
+                num_INV_applied += 1 if tran_type == 'INV' else 0
+                num_SIB_applied += 1 if tran_type == 'SIB' else 0
+                
+        # format types
+        new_text = [str(x[0]) if type(x) == list else str(x) for x in new_text]
+        new_labels = [np.squeeze(y).tolist() if isinstance(y, (list, np.ndarray, torch.Tensor)) else y for y in new_labels]
+        
+        return new_text, new_labels
+
+    # # example ####################################################
+    # def batcher(iterable, n=1):
+    #     l = len(iterable)
+    #     for ndx in range(0, l, n):
+    #         yield iterable[ndx:min(ndx + n, l)]
+
+    # t = SibylTransformer("sentiment", num_INV = 2, num_SIB = 2)
+
+    # new_text, new_labels = [], []
+    # for batch in batcher(dataset, 5):
+    #     t_, l_ = t((batch['text'], batch['label']))
+    #     new_text.extend(t_)
+    #     new_labels.extend(l_)
+
+    # print(new_text, new_labels)

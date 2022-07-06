@@ -1,6 +1,9 @@
 import numpy as np
 import torch
 
+def is_batched(transform):
+    return 'batch' in transform.__class__.__bases__[0].__name__.lower()
+
 def already_ohe(y):
     if len(y.shape) <= 1:
         return False

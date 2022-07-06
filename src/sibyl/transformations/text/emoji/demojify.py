@@ -59,19 +59,19 @@ class Demojify(AbstractTransformation):
         df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y, task_config):
+    def transform_Xy(self, X, y):
 
         # transform X
         if isinstance(X, str):
             X = [X]
 
-        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+        assert len(X) == len(self.task_config['input_idx']), ("The number of inputs does not match the expected "
                                                          "amount of {} for the {} task".format(
-                                                            task_config['input_idx'],
-                                                            task_config['task_name']))
+                                                            self.task_config['input_idx'],
+                                                            self.task_config['task_name']))
 
         X_out = []
-        for i, x in zip(task_config['input_idx'], X):
+        for i, x in zip(self.task_config['input_idx'], X):
             if i == 0:
                 X_out.append(x)
                 continue
@@ -81,10 +81,10 @@ class Demojify(AbstractTransformation):
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
         # transform y
-        if task_config['tran_type'] == 'INV':
+        if self.task_config['tran_type'] == 'INV':
             y_out = y
         else:
-            soften = task_config['label_type'] == 'soft'
+            soften = self.task_config['label_type'] == 'soft'
             y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
@@ -158,19 +158,19 @@ class RemoveEmoji(Demojify):
                 string = string[:i] + '' + string[i + 1:].lstrip()
         return string.rstrip()
 
-    def transform_Xy(self, X, y, task_config):
+    def transform_Xy(self, X, y):
 
         # transform X
         if isinstance(X, str):
             X = [X]
 
-        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+        assert len(X) == len(self.task_config['input_idx']), ("The number of inputs does not match the expected "
                                                          "amount of {} for the {} task".format(
-                                                            task_config['input_idx'],
-                                                            task_config['task_name']))
+                                                            self.task_config['input_idx'],
+                                                            self.task_config['task_name']))
 
         X_out = []
-        for i, x in zip(task_config['input_idx'], X):
+        for i, x in zip(self.task_config['input_idx'], X):
             if i == 0:
                 X_out.append(x)
                 continue
@@ -180,7 +180,7 @@ class RemoveEmoji(Demojify):
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
         # transform y
-        if task_config['tran_type'] == 'INV':
+        if self.task_config['tran_type'] == 'INV':
             y_out = y
         else:
             if self.sentiment == 'positive':
@@ -219,19 +219,19 @@ class RemovePositiveEmoji(RemoveEmoji):
         df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y, task_config):
+    def transform_Xy(self, X, y):
 
         # transform X
         if isinstance(X, str):
             X = [X]
 
-        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+        assert len(X) == len(self.task_config['input_idx']), ("The number of inputs does not match the expected "
                                                          "amount of {} for the {} task".format(
-                                                            task_config['input_idx'],
-                                                            task_config['task_name']))
+                                                            self.task_config['input_idx'],
+                                                            self.task_config['task_name']))
 
         X_out = []
-        for i, x in zip(task_config['input_idx'], X):
+        for i, x in zip(self.task_config['input_idx'], X):
             if i == 0:
                 X_out.append(x)
                 continue
@@ -241,7 +241,7 @@ class RemovePositiveEmoji(RemoveEmoji):
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
         # transform y
-        if task_config['tran_type'] == 'INV':
+        if self.task_config['tran_type'] == 'INV':
             y_out = y
         else:
             y_out = smooth_label(y, factor=0.5)
@@ -275,19 +275,19 @@ class RemoveNegativeEmoji(RemoveEmoji):
         df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y, task_config):
+    def transform_Xy(self, X, y):
 
         # transform X
         if isinstance(X, str):
             X = [X]
 
-        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+        assert len(X) == len(self.task_config['input_idx']), ("The number of inputs does not match the expected "
                                                          "amount of {} for the {} task".format(
-                                                            task_config['input_idx'],
-                                                            task_config['task_name']))
+                                                            self.task_config['input_idx'],
+                                                            self.task_config['task_name']))
 
         X_out = []
-        for i, x in zip(task_config['input_idx'], X):
+        for i, x in zip(self.task_config['input_idx'], X):
             if i == 0:
                 X_out.append(x)
                 continue
@@ -297,7 +297,7 @@ class RemoveNegativeEmoji(RemoveEmoji):
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
         # transform y
-        if task_config['tran_type'] == 'INV':
+        if self.task_config['tran_type'] == 'INV':
             y_out = y
         else:
             y_out = smooth_label(y, factor=0.5)
@@ -331,19 +331,19 @@ class RemoveNeutralEmoji(RemoveEmoji):
         df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
 
-    def transform_Xy(self, X, y, task_config):
+    def transform_Xy(self, X, y):
 
         # transform X
         if isinstance(X, str):
             X = [X]
 
-        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+        assert len(X) == len(self.task_config['input_idx']), ("The number of inputs does not match the expected "
                                                          "amount of {} for the {} task".format(
-                                                            task_config['input_idx'],
-                                                            task_config['task_name']))
+                                                            self.task_config['input_idx'],
+                                                            self.task_config['task_name']))
 
         X_out = []
-        for i, x in zip(task_config['input_idx'], X):
+        for i, x in zip(self.task_config['input_idx'], X):
             if i == 0:
                 X_out.append(x)
                 continue
@@ -353,7 +353,7 @@ class RemoveNeutralEmoji(RemoveEmoji):
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
         # transform y
-        if task_config['tran_type'] == 'INV':
+        if self.task_config['tran_type'] == 'INV':
             y_out = y
         else:
             y_out = smooth_label(y, factor=0.5)

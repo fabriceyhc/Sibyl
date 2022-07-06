@@ -54,19 +54,19 @@ class ImportLinkText(AbstractTransformation):
         df = self._get_task_configs(init_configs, task_name, tran_type, label_type)
         return df
         
-    def transform_Xy(self, X, y, task_config):
+    def transform_Xy(self, X, y):
 
         # transform X
         if isinstance(X, str):
             X = [X]
 
-        assert len(X) == len(task_config['input_idx']), ("The number of inputs does not match the expected "
+        assert len(X) == len(self.task_config['input_idx']), ("The number of inputs does not match the expected "
                                                          "amount of {} for the {} task".format(
-                                                            task_config['input_idx'],
-                                                            task_config['task_name']))
+                                                            self.task_config['input_idx'],
+                                                            self.task_config['task_name']))
 
         X_out = []
-        for i, x in zip(task_config['input_idx'], X):
+        for i, x in zip(self.task_config['input_idx'], X):
             if i == 0:
                 X_out.append(x)
                 continue
@@ -76,11 +76,11 @@ class ImportLinkText(AbstractTransformation):
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
         # transform y
-        if task_config['tran_type'] == 'INV':
+        if self.task_config['tran_type'] == 'INV':
             y_out = y
         else:                
-            soften = task_config['label_type'] == 'soft'
-            if task_config['task_name'] == 'grammaticality':
+            soften = self.task_config['label_type'] == 'soft'
+            if self.task_config['task_name'] == 'grammaticality':
                 # hard code for now... :(
                 # 0 = ungrammatical, 1 = grammatical
                 if isinstance(y, int):
@@ -93,7 +93,7 @@ class ImportLinkText(AbstractTransformation):
                         y_out = y
                     else: 
                         y_out = invert_label(y, soften=soften)
-            if task_config['task_name'] == 'similarity':
+            if self.task_config['task_name'] == 'similarity':
                 # hard code for now... :(
                 # 0 = dissimilar, 1 = similar
                 if isinstance(y, int):
@@ -106,7 +106,7 @@ class ImportLinkText(AbstractTransformation):
                         y_out = 0
                     else:
                         y_out = smooth_label(y, factor=0.25)
-            elif task_config['task_name'] == 'entailment':
+            elif self.task_config['task_name'] == 'entailment':
                 # hard coded for now... :(
                 # 0 = entailed, 1 = neutral, 2 = contradiction
                 if isinstance(y, int):
