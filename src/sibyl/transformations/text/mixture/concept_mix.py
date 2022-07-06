@@ -45,16 +45,22 @@ class ConceptMix(AbstractBatchTransformation):
             # Entailment(input_idx=[0,1], tran_type='SIB'),
             # Entailment(input_idx=[1,1], tran_type='SIB'),
         ]
-        self.c2s = Concept2Sentence(
-                        dataset = dataset,
-                        extract = extract,
-                        gen_beam_size = gen_beam_size,
-                        text_min_length = text_min_length,
-                        text_max_length = text_max_length,
-                        device = device)
+        self.dataset = dataset
+        self.extract = extract
+        self.gen_beam_size = gen_beam_size
+        self.text_min_length = text_min_length
+        self.text_max_length = text_max_length
+        self.device = device
         self.generation_type = generation_type
         if self.generation_type not in ['joint', 'disjoint']:
             raise ValueError("Must select a generation type from ['joint', 'disjoin']")
+        self.c2s = Concept2Sentence(
+                        dataset = self.dataset,
+                        extract = self.extract,
+                        gen_beam_size = self.gen_beam_size,
+                        text_min_length = self.text_min_length,
+                        text_max_length = self.text_max_length,
+                        device = self.device)
         
     def __call__(self, batch, target_pairs=[], target_prob=1, num_classes=2):
         """
