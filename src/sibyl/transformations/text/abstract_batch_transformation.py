@@ -30,7 +30,8 @@ class AbstractBatchTransformation(ABC):
         pass
 
     def transform_batch(self, batch):
-        return self.__call__(batch)
+        batch, _ = self.__call__(batch)
+        return batch
 
     @abstractmethod
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
