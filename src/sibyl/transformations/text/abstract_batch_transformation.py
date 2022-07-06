@@ -29,6 +29,8 @@ class AbstractBatchTransformation(ABC):
         """
         pass
 
+    def transform_batch(self, batch):
+        return self.__call__(batch)
 
     @abstractmethod
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):

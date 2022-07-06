@@ -693,3 +693,59 @@ class SibylTransformer:
     #     new_labels.extend(l_)
 
     # print(new_text, new_labels)
+
+# when you just want the transforms without applying them to a batch
+class SibylTransformScheduler:
+    def __init__(self, task, num_classes=2, multiplier=1, num_INV=1, num_SIB=1):
+        self.task = task
+        self.num_classes = num_classes
+        self.multiplier = multiplier
+        self.num_INV = num_INV
+        self.num_SIB = num_SIB
+        
+        self.tran_df = init_transforms(task_name=self.task)
+        self.INV_fns = self.tran_df[self.tran_df['tran_type']=='INV']['tran_fn'].to_list()
+        self.SIB_fns = self.tran_df[self.tran_df['tran_type']=='SIB']['tran_fn'].to_list()
+
+        self.np_random = np.random.default_rng(SIBYL_SEED)
+        
+    def sample_transform(self, tran_type):
+        if tran_type == 'INV':
+            return self.np_random.choice(self.INV_fns)
+        else:
+            return self.np_random.choice(self.SIB_fns)      
+                    
+    def sample(self):
+        trans = []
+        for _ in range(self.multiplier):
+            num_INV_applied, num_SIB_applied = 0, 0
+            while num_INV_applied < self.num_INV or num_SIB_applied < self.num_SIB:
+                
+                # sample transform
+                sample_prob = np.array([self.num_INV - num_INV_applied, self.num_SIB - num_SIB_applied])
+                sample_prob = sample_prob / sample_prob.sum()
+                tran_type = self.np_random.choice(['INV', 'SIB'], p=sample_prob)
+                transform = self.sample_transform(tran_type)
+                
+                trans.append(transform)
+
+                num_INV_applied += 1 if tran_type == 'INV' else 0
+                num_SIB_applied += 1 if tran_type == 'SIB' else 0
+                
+        return trans
+
+    # # example ################################################################
+    # scheduler = SibylTransformScheduler("sentiment", num_INV = 2, num_SIB = 2)
+    # text, label = dataset['text'], dataset['label'] 
+
+    # batch_size= 10
+
+    # records = []
+    # for i in tqdm(range(0, len(label), batch_size)):
+    #     text_batch = text[i:i+batch_size]
+    #     label_batch = label[i:i+batch_size]
+    #     batch = (text_batch, label_batch)
+    #     for transform in scheduler.sample():
+    #         new_records = transform.transform_batch(batch)
+    #     records.append(new_records)
+

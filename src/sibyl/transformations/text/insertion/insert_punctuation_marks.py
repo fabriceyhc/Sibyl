@@ -49,13 +49,15 @@ class InsertPunctuationMarks(AbstractTransformation):
         Returns
         ----------
         in_text : str
-            The output with random chars inserted
+            The output with random punctuation marks inserted
         """
         if len(in_text) == 0:
             return in_text
         words = in_text.split(' ')
+        if len(words) == 1:
+            punc_ratio = 0.5
         out_text = []
-        q = self.np_random.integers(1, int(punc_ratio * len(words) + 1))
+        q = min(self.np_random.integers(1, int((punc_ratio * len(words))) + 2), len(words))
         qs = self.np_random.permutation(range(0, len(words)))[:q]
 
         for j, word in enumerate(words):

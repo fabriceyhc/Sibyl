@@ -60,6 +60,13 @@ class AbstractTransformation(ABC):
                                                                self.task_config['input_idx'],
                                                                self.task_config['task_name']))
 
+    def transform_batch(self, batch):
+        new_text, new_labels = [], []
+        for X, y in zip(*batch):
+            X, y, meta = self.transform_Xy(X, y)
+            new_text.append(X)
+            new_labels.append(y)  
+        return (new_text, new_labels)
 
     @abstractmethod
     def get_task_configs(self, task_name=None, tran_type=None, label_type=None):
