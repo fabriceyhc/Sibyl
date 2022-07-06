@@ -625,12 +625,14 @@ class SibylTransformer:
         self.tran_df = init_transforms(task_name=self.task)
         self.INV_fns = self.tran_df[self.tran_df['tran_type']=='INV']['tran_fn'].to_list()
         self.SIB_fns = self.tran_df[self.tran_df['tran_type']=='SIB']['tran_fn'].to_list()
+
+        self.np_random = np.random.default_rng(SIBYL_SEED)
         
     def sample_transform(self, tran_type):
         if tran_type == 'INV':
-            return np_random.choice(self.INV_fns)
+            return self.np_random.choice(self.INV_fns)
         else:
-            return np_random.choice(self.SIB_fns)
+            return self.np_random.choice(self.SIB_fns)
         
     def apply_transform(self, batch, transform):
         if is_batched(transform):
@@ -657,7 +659,7 @@ class SibylTransformer:
                 # sample transform
                 sample_prob = np.array([self.num_INV - num_INV_applied, self.num_SIB - num_SIB_applied])
                 sample_prob = sample_prob / sample_prob.sum()
-                tran_type = np_random.choice(['INV', 'SIB'], p=sample_prob)
+                tran_type = self.np_random.choice(['INV', 'SIB'], p=sample_prob)
                 transform = self.sample_transform(tran_type)
                 
                 # apply transform
