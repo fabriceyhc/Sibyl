@@ -74,6 +74,7 @@ from tqdm import tqdm
 import traceback
 
 from .utils import *
+from .config import *
 from .transformations.utils import *
 
 def init_transforms(task_name=None, tran_type=None, label_type=None, return_metadata=True, dataset=None, transforms=None):
