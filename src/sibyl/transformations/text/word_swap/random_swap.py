@@ -8,7 +8,7 @@ class RandomSwap(AbstractTransformation):
     Swaps random words
     """
 
-    def __init__(self, n=1, return_metadata=False):
+    def __init__(self, n=1, task_name=None, return_metadata=False):
         """
         Initializes the transformation
 
@@ -21,7 +21,7 @@ class RandomSwap(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
-        super().__init__() 
+        super().__init__(task_name) 
         self.n=n
         self.return_metadata = return_metadata
         self.task_configs = [
@@ -35,6 +35,7 @@ class RandomSwap(AbstractTransformation):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
     
     def __call__(self, in_text):
         """
@@ -80,26 +81,28 @@ class RandomSwap(AbstractTransformation):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            soften = self.task_config['label_type'] == 'soft'
-            if self.task_config['task_name'] == 'grammaticality':
-                # hard code for now... :(
-                # 0 = ungrammatical, 1 = grammatical
-                if isinstance(y, int):
-                    if y == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
-                else:
-                    if np.argmax(y) == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
             else:
-                y_out = invert_label(y, soften=soften)
+                soften = self.task_config['label_type'] == 'soft'
+                if self.task_config['task_name'] == 'grammaticality':
+                    # hard code for now... :(
+                    # 0 = ungrammatical, 1 = grammatical
+                    if isinstance(y, int):
+                        if y == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                    else:
+                        if np.argmax(y) == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                else:
+                    y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
             return X_out, y_out, metadata

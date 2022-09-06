@@ -3,20 +3,20 @@ from ..utils import *
 from ...config import *
 import numpy as np
 import pandas as pd
- 
+
+
 class AbstractTransformation(ABC):
     """
     An abstract class for transformations to be applied 
     to input data. 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, task_name, **kwargs):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
         """
         self.np_random = np.random.default_rng(SIBYL_SEED)
-        self.task_config = None
     
     @abstractmethod
     def __call__(self, in_text):
@@ -124,3 +124,9 @@ class AbstractTransformation(ABC):
                 raise ValueError('The selected label type must be one of the following: {}'.format(', '.join(tran_types)))
             df = df[df['label_type'] == label_type]
         return df
+
+    def match_task(self, task_name):
+        for task in self.task_configs:
+            if task.task_name == task_name:
+                return task()
+        return None

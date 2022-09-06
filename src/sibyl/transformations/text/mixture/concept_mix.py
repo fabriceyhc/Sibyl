@@ -11,7 +11,7 @@ class ConceptMix(AbstractBatchTransformation):
 
     uses_dataset = True
     
-    def __init__(self, 
+    def __init__(self, task_name=None, 
                  return_metadata=False,
                  dataset=None, 
                  extract="token",
@@ -32,7 +32,7 @@ class ConceptMix(AbstractBatchTransformation):
             whether a transform was successfully
             applied or not
         """
-        super().__init__() 
+        super().__init__(task_name) 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(tran_type='SIB'),
@@ -45,6 +45,7 @@ class ConceptMix(AbstractBatchTransformation):
             # Entailment(input_idx=[0,1], tran_type='SIB'),
             # Entailment(input_idx=[1,1], tran_type='SIB'),
         ]
+        self.task_config = self.match_task(task_name)
         self.dataset = dataset
         self.extract = extract
         self.gen_beam_size = gen_beam_size

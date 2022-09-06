@@ -3,7 +3,7 @@ from ..tasks import *
 from emoji_translate import Translator
 
 class Emojify(AbstractTransformation):
-    def __init__(self, exact_match_only=False, randomize=False, return_metadata=False):
+    def __init__(self, exact_match_only=False, randomize=False, task_name=None, return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
@@ -22,7 +22,7 @@ class Emojify(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
-        super().__init__() 
+        super().__init__(task_name) 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -35,6 +35,7 @@ class Emojify(AbstractTransformation):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
         self.exact_match_only = exact_match_only
         self.randomize = randomize
         self.emo = Translator(self.exact_match_only, self.randomize)
@@ -69,19 +70,21 @@ class Emojify(AbstractTransformation):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            soften = self.task_config['label_type'] == 'soft'
-            y_out = invert_label(y, soften=soften)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
+            else:
+                soften = self.task_config['label_type'] == 'soft'
+                y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
             return X_out, y_out, metadata
         return X_out, y_out
 
 class AddEmoji(Emojify):
-    def __init__(self, num=1, polarity=[-1, 1], return_metadata=False):
+    def __init__(self, num=1, polarity=[-1, 1], task_name=None, return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
@@ -99,7 +102,7 @@ class AddEmoji(Emojify):
             - negative ==> [-1, -0.05] 
             - neutral ==> [-0.05, 0.05]
         """
-        super().__init__(self, return_metadata=False) 
+        super().__init__(self, task_name=None, return_metadata=False) 
         self.num = num
         self.polarity = polarity
         if self.polarity[0] <= -0.05:
@@ -121,6 +124,7 @@ class AddEmoji(Emojify):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
 
     def __call__(self, in_text):
         """
@@ -167,24 +171,26 @@ def transform_Xy(self, X, y):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            if self.sentiment == 'positive':
-                y_out = smooth_label(y, factor=0.5)
-            if self.sentiment == 'negative':
-                y_out = smooth_label(y, factor=0.5)
-            if self.sentiment == 'neutral':
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
                 y_out = y
+            else:
+                if self.sentiment == 'positive':
+                    y_out = smooth_label(y, factor=0.15)
+                if self.sentiment == 'negative':
+                    y_out = smooth_label(y, factor=0.15)
+                if self.sentiment == 'neutral':
+                    y_out = y
         
         if self.return_metadata: 
             return X_out, y_out, metadata
         return X_out, y_out
 
 class AddPositiveEmoji(AddEmoji):
-    def __init__(self, num=1, polarity=[0.05, 1], return_metadata=False):
-        super().__init__(self, return_metadata=False) 
+    def __init__(self, num=1, polarity=[0.05, 1], task_name=None, return_metadata=False):
+        super().__init__(self, task_name=None, return_metadata=False) 
         self.num = num
         self.polarity = polarity        
         self.return_metadata = return_metadata
@@ -199,6 +205,7 @@ class AddPositiveEmoji(AddEmoji):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
 
     def __call__(self, in_text):
         """
@@ -238,14 +245,28 @@ class AddPositiveEmoji(AddEmoji):
                 continue
             X_out.append(self(x))
 
-        metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
+        metadata = {'change': X != X_out}
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            y_out = smooth_label(y, factor=0.5)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
+            else:
+                if self.task_config['task_name'] == 'sentiment':
+                    if isinstance(y, int):
+                        if y == 0:
+                            y_out = interpolate_label(0, 1, X[0], uncommon(X[0], X_out))
+                        else:
+                            y_out = smooth_label(y, factor=0)
+                    else:
+                        if np.argmax(y) == 0:
+                            y_out = interpolate_label(0, 1, X[0], uncommon(X[0], X_out))
+                        else:
+                            y_out = smooth_label(y, factor=0)
+                else:
+                    y_out = smooth_label(y, factor=0.15)
         
         if self.return_metadata: 
             return X_out, y_out, metadata
@@ -253,8 +274,8 @@ class AddPositiveEmoji(AddEmoji):
 
 
 class AddNegativeEmoji(AddEmoji):
-    def __init__(self, num=1, polarity=[-1, -0.05], return_metadata=False):
-        super().__init__(self, return_metadata=False) 
+    def __init__(self, num=1, polarity=[-1, -0.05], task_name=None, return_metadata=False):
+        super().__init__(self, task_name=None, return_metadata=False) 
         self.num = num
         self.polarity = polarity
         self.return_metadata = return_metadata
@@ -269,6 +290,7 @@ class AddNegativeEmoji(AddEmoji):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
 
     def __call__(self, in_text):
         """
@@ -311,19 +333,33 @@ class AddNegativeEmoji(AddEmoji):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            y_out = smooth_label(y, factor=0.5)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
+            else:
+                if self.task_config['task_name'] == 'sentiment':
+                    if isinstance(y, int):
+                        if y == 0:
+                            y_out = smooth_label(y, factor=0)
+                        else:
+                            y_out = interpolate_label(1, 0, X[0], uncommon(X[0], X_out))
+                    else:
+                        if np.argmax(y) == 0:
+                            y_out = smooth_label(y, factor=0)
+                        else:
+                            y_out = interpolate_label(1, 0, X[0], uncommon(X[0], X_out))
+                else:
+                    y_out = smooth_label(y, factor=0.15)
         
         if self.return_metadata: 
             return X_out, y_out, metadata
         return X_out, y_out
 
 class AddNeutralEmoji(AddEmoji):
-    def __init__(self, num=1, polarity=[-0.05, 0.05], return_metadata=False):
-        super().__init__(self, return_metadata=False) 
+    def __init__(self, num=1, polarity=[-0.05, 0.05], task_name=None, return_metadata=False):
+        super().__init__(self, task_name=None, return_metadata=False) 
         self.num = num
         self.polarity = polarity
         self.return_metadata = return_metadata
@@ -338,6 +374,7 @@ class AddNeutralEmoji(AddEmoji):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
 
     def __call__(self, in_text):
         """
@@ -380,11 +417,13 @@ class AddNeutralEmoji(AddEmoji):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            y_out = smooth_label(y, factor=0.5)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
+            else:
+                y_out = smooth_label(y, factor=0.5)
         
         if self.return_metadata: 
             return X_out, y_out, metadata

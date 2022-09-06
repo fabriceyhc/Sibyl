@@ -46,7 +46,7 @@ class Concept2Sentence(AbstractTransformation):
 
     uses_dataset = True
     
-    def __init__(self, 
+    def __init__(self, task_name=None, 
                  return_metadata=False, 
                  dataset=None, 
                  extract="token",
@@ -58,7 +58,7 @@ class Concept2Sentence(AbstractTransformation):
                  require_concepts_in_new_text=False,
                  lemmatizer=None,
                  return_concepts=False):
-        super().__init__() 
+        super().__init__(task_name) 
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -71,6 +71,7 @@ class Concept2Sentence(AbstractTransformation):
             Entailment(input_idx=[0,1], tran_type='SIB'),
             Entailment(input_idx=[1,1], tran_type='SIB'),
         ]
+        self.task_config = self.match_task(task_name)
         self.dataset = dataset
         self.extract = extract
         self.gen_beam_size = gen_beam_size
@@ -171,42 +172,44 @@ class Concept2Sentence(AbstractTransformation):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:                
-            soften = self.task_config['label_type'] == 'soft'
-            if self.task_config['task_name'] == 'similarity':
-                # hard code for now... :(
-                # 0 = dissimilar, 1 = similar
-                if (self.task_config['input_idx'] == [1,1] and concepts_out[0] == concepts_out[-1]):
-                        y_out = y
-                else:
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
+            else:                
+                soften = self.task_config['label_type'] == 'soft'
+                if self.task_config['task_name'] == 'similarity':
+                    # hard code for now... :(
+                    # 0 = dissimilar, 1 = similar
+                    if (self.task_config['input_idx'] == [1,1] and concepts_out[0] == concepts_out[-1]):
+                            y_out = y
+                    else:
+                        if isinstance(y, int):
+                            if y == 0:
+                                y_out = 0
+                            else:
+                                y_out = invert_label(y, soften=soften)
+                        else:
+                            if np.argmax(y) == 0:
+                                y_out = 0
+                            else:
+                                y_out = smooth_label(y, factor=0.25)
+                elif self.task_config['task_name'] == 'entailment':
+                    # hard coded for now... :(
+                    # 0 = entailed, 1 = neutral, 2 = contradiction
                     if isinstance(y, int):
-                        if y == 0:
-                            y_out = 0
-                        else:
-                            y_out = invert_label(y, soften=soften)
+                        if y in [0, 2]:
+                            y_out = 1
+                        else: 
+                            y_out = y
                     else:
-                        if np.argmax(y) == 0:
-                            y_out = 0
+                        if np.argmax(y) in [0, 2]:
+                            y_out = 1
                         else:
-                            y_out = smooth_label(y, factor=0.25)
-            elif self.task_config['task_name'] == 'entailment':
-                # hard coded for now... :(
-                # 0 = entailed, 1 = neutral, 2 = contradiction
-                if isinstance(y, int):
-                    if y in [0, 2]:
-                        y_out = 1
-                    else: 
-                        y_out = y
+                            y_out = y
                 else:
-                    if np.argmax(y) in [0, 2]:
-                        y_out = 1
-                    else:
-                        y_out = y
-            else:
-                y_out = invert_label(y, soften=soften)
+                    y_out = invert_label(y, soften=soften)
 
         self.return_concepts = orig_return_concepts_state
         

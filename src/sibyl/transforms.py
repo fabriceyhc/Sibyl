@@ -77,20 +77,28 @@ from .utils import *
 from .config import *
 from .transformations.utils import *
 
-def init_transforms(task_name=None, tran_type=None, label_type=None, return_metadata=True, dataset=None, transforms=None):
+def init_transforms(task_name=None, tran_type=None, label_type=None, return_metadata=True, dataset=None, transforms=None, class_wrapper=None):
+    if not class_wrapper:
+        class_wrapper = lambda x: x
     df_all = []
     if transforms:
         for tran in transforms:
-            df = tran.get_task_configs()
-            df['transformation'] = tran.__class__.__name__
-            df['tran_fn'] = tran
+            tran = class_wrapper(tran)
+            if hasattr(tran, 'uses_dataset'):
+                t = tran(task_name=task_name, return_metadata=return_metadata, dataset=dataset)
+            else:
+                t = tran(task_name=task_name, return_metadata=return_metadata)
+            df = t.get_task_configs()
+            df['transformation'] = t.__class__.__name__
+            df['tran_fn'] = t
             df_all.append(df)
     else:
         for tran in TRANSFORMATIONS:
+            tran = class_wrapper(tran)
             if hasattr(tran, 'uses_dataset'):
-                t = tran(return_metadata=return_metadata, dataset=dataset)
+                t = tran(task_name=task_name, return_metadata=return_metadata, dataset=dataset)
             else:
-                t = tran(return_metadata=return_metadata)
+                t = tran(task_name=task_name, return_metadata=return_metadata)
             df = t.get_task_configs()
             df['transformation'] = t.__class__.__name__
             df['tran_fn'] = t
@@ -107,18 +115,18 @@ def init_transforms(task_name=None, tran_type=None, label_type=None, return_meta
         df = df[label_df]
     df.reset_index(drop=True, inplace=True)
 
-    # set task_configs
-    new_tran_fns = []
-    for index, row in df.iterrows():
-        task_config = {
-                'task_name' : row['task_name'],
-                'input_idx' : row['input_idx'],
-                'tran_type' : row['tran_type'],
-                'label_type': row['label_type']
-            }
-        row['tran_fn'].task_config = task_config
-        new_tran_fns.append(row['tran_fn'])
-    df['tran_fn'] = new_tran_fns    
+    # # set task_configs
+    # new_tran_fns = []
+    # for index, row in df.iterrows():
+    #     task_config = {
+    #             'task_name' : row['task_name'],
+    #             'input_idx' : row['input_idx'],
+    #             'tran_type' : row['tran_type'],
+    #             'label_type': row['label_type']
+    #         }
+    #     row['tran_fn'].task_config = task_config
+    #     new_tran_fns.append(row['tran_fn'])
+    # df['tran_fn'] = new_tran_fns    
     return df
 
 def transform_test_suites(
@@ -616,24 +624,71 @@ def sibyl_dataset_transform(batch):
 
 # simplified version of SibylCollator
 class SibylTransformer:
-    def __init__(self, task, num_classes=2, multiplier=1, num_INV=1, num_SIB=1):
+    def __init__(self, 
+                 task, 
+                 transforms=None, 
+                 num_classes=2, 
+                 multiplier=1, 
+                 num_INV=-1, 
+                 num_SIB=-1, 
+                 enforce_uniformity=True,
+                 class_wrapper=None):
+        
         self.task = task
+        self.transforms = transforms
         self.num_classes = num_classes
         self.multiplier = multiplier
         self.num_INV = num_INV
         self.num_SIB = num_SIB
+        self.enforce_uniformity = enforce_uniformity
+        self.class_wrapper = class_wrapper
         
-        self.tran_df = init_transforms(task_name=self.task)
+        self.tran_df = init_transforms(task_name=self.task, 
+                                       transforms = self.transforms, 
+                                       class_wrapper=self.class_wrapper)
         self.INV_fns = self.tran_df[self.tran_df['tran_type']=='INV']['tran_fn'].to_list()
         self.SIB_fns = self.tran_df[self.tran_df['tran_type']=='SIB']['tran_fn'].to_list()
+        
+        self.INV_applied = {f: 0 for f in self.INV_fns}
+        self.SIB_applied = {f: 0 for f in self.SIB_fns}
+        
+        if self.num_INV < 1 and self.num_SIB < 1:
+            self.ALL_fns = self.tran_df['tran_fn'].to_list()
+            self.ALL_applied = {f: 0 for f in self.ALL_fns}
 
         self.np_random = np.random.default_rng(SIBYL_SEED)
         
-    def sample_transform(self, tran_type):
-        if tran_type == 'INV':
-            return self.np_random.choice(self.INV_fns)
+    def get_sample_prob(self, tran_type):
+        if tran_type == "INV":
+            ts = self.INV_applied
+        elif tran_type == "SIB":
+            ts = self.SIB_applied
         else:
-            return self.np_random.choice(self.SIB_fns)
+            ts = self.ALL_applied
+        t = np.array(list(ts.values()))
+        p_mass = np.where(t == t.min())[0]
+        p = np.zeros_like(t, dtype=np.float32)
+        p[p_mass] = 1. / len(p_mass)
+        return p
+
+    def sample_transform(self, tran_type):
+        p = None
+        if tran_type == "INV":
+            if self.enforce_uniformity:
+                p = self.get_sample_prob("INV")
+            t = self.np_random.choice(self.INV_fns, p=p)
+            self.INV_applied[t] += 1
+        elif tran_type == "SIB":
+            if self.enforce_uniformity:
+                p = self.get_sample_prob("SIB")
+            t = self.np_random.choice(self.SIB_fns, p=p)
+            self.SIB_applied[t] += 1
+        else:
+            if self.enforce_uniformity:
+                p = self.get_sample_prob("ALL")
+            t = self.np_random.choice(self.ALL_fns, p=p)
+            self.ALL_applied[t] += 1
+        return t
         
     def apply_transform(self, batch, transform):
         if is_batched(transform):
@@ -647,36 +702,49 @@ class SibylTransformer:
             new_text, new_labels = [], []
             for X, y in zip(*batch):
                 X, y, meta = transform.transform_Xy(X, y)
+                y = one_hot_encode(y, self.num_classes)
                 new_text.append(X)
                 new_labels.append(y)  
             return new_text, new_labels       
                     
     def __call__(self, batch):
-        new_text, new_labels = [], []
+        new_text, new_labels, transforms = [], [], []
         for _ in range(self.multiplier):
-            num_INV_applied, num_SIB_applied = 0, 0
-            while num_INV_applied < self.num_INV or num_SIB_applied < self.num_SIB:
-                
-                # sample transform
-                sample_prob = np.array([self.num_INV - num_INV_applied, self.num_SIB - num_SIB_applied])
-                sample_prob = sample_prob / sample_prob.sum()
-                tran_type = self.np_random.choice(['INV', 'SIB'], p=sample_prob)
-                transform = self.sample_transform(tran_type)
-                
-                # apply transform
-                text_, labels_ = self.apply_transform(batch, transform)
-                
-                new_text.extend(text_)
-                new_labels.extend(labels_)
+            if self.num_INV > 0 or self.num_SIB > 0:
+                num_INV_applied, num_SIB_applied = 0, 0
+                while num_INV_applied < self.num_INV or num_SIB_applied < self.num_SIB:
 
-                num_INV_applied += 1 if tran_type == 'INV' else 0
-                num_SIB_applied += 1 if tran_type == 'SIB' else 0
+                    # sample transform
+                    sample_prob = np.array([self.num_INV - num_INV_applied, self.num_SIB - num_SIB_applied])
+                    sample_prob = sample_prob / sample_prob.sum()
+                    tran_type = self.np_random.choice(['INV', 'SIB'], p=sample_prob)
+                    transform = self.sample_transform(tran_type)
+
+                    # apply transform
+                    batch = self.apply_transform(batch, transform)
+
+                    num_INV_applied += 1 if tran_type == 'INV' else 0
+                    num_SIB_applied += 1 if tran_type == 'SIB' else 0
+                    transforms.append(transform.__class__.__name__)
+                    
+            else:
+                # sample transform
+                transform = self.sample_transform("ALL")
+                # apply transform
+                batch = self.apply_transform(batch, transform)
+                transforms.append(transform.__class__.__name__)
+                
+        text_, labels_ = batch 
+        
+        new_text.extend(text_)
+        new_labels.extend(labels_)
                 
         # format types
         new_text = [str(x[0]) if type(x) == list else str(x) for x in new_text]
         new_labels = [np.squeeze(y).tolist() if isinstance(y, (list, np.ndarray, torch.Tensor)) else y for y in new_labels]
+        new_transforms = [", ".join(transforms) for _ in range(len(new_text))]
         
-        return new_text, new_labels
+        return new_text, new_labels, new_transforms
 
     # # example ####################################################
     # def batcher(iterable, n=1):
@@ -696,14 +764,26 @@ class SibylTransformer:
 
 # when you just want the transforms without applying them to a batch
 class SibylTransformScheduler:
-    def __init__(self, task, num_classes=2, multiplier=1, num_INV=1, num_SIB=1):
+    def __init__(self, 
+                 task, 
+                 transforms=None,
+                 num_classes=2, 
+                 multiplier=1, 
+                 num_INV=1, 
+                 num_SIB=1, 
+                 class_wrapper=None):
+        
         self.task = task
         self.num_classes = num_classes
         self.multiplier = multiplier
         self.num_INV = num_INV
         self.num_SIB = num_SIB
+        self.class_wrapper = class_wrapper
+        self.transforms = transforms
         
-        self.tran_df = init_transforms(task_name=self.task)
+        self.tran_df = init_transforms(task_name=self.task, 
+                                       transforms = self.transforms, 
+                                       class_wrapper=self.class_wrapper)
         self.INV_fns = self.tran_df[self.tran_df['tran_type']=='INV']['tran_fn'].to_list()
         self.SIB_fns = self.tran_df[self.tran_df['tran_type']=='SIB']['tran_fn'].to_list()
 

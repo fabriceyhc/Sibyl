@@ -10,7 +10,7 @@ class ChangeLocation(AbstractTransformation):
     location entity.
     """
 
-    def __init__(self, return_metadata=False):
+    def __init__(self, task_name=None, return_metadata=False):
         """
         Parameters
         ----------
@@ -19,7 +19,7 @@ class ChangeLocation(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
-        super().__init__() 
+        super().__init__(task_name) 
         self.nlp = en_core_web_sm.load()
         self.return_metadata = return_metadata
         self.task_configs = [
@@ -33,6 +33,7 @@ class ChangeLocation(AbstractTransformation):
             Entailment(input_idx=[0,1], tran_type='SIB'),
             Entailment(input_idx=[1,1], tran_type='SIB'),
         ]
+        self.task_config = self.match_task(task_name)
     
     def __call__(self, in_text):
         doc = self.nlp(in_text)
@@ -80,39 +81,41 @@ class ChangeLocation(AbstractTransformation):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            soften = self.task_config['label_type'] == 'soft'
-            if self.task_config['task_name'] == 'similarity':
-                # hard code for now... :(
-                # 0 = dissimilar, 1 = similar
-                if isinstance(y, int):
-                    if y == 0:
-                        y_out = 0
-                    else:
-                        y_out = invert_label(y, soften=soften)
-                else:
-                    if np.argmax(y) == 0:
-                        y_out = 0
-                    else:
-                        y_out = smooth_label(y, factor=0.25)
-            elif self.task_config['task_name'] == 'entailment':
-                # hard coded for now... :(
-                # 0 = entailed, 1 = neutral, 2 = contradiction
-                if isinstance(y, int):
-                    if y in [0, 2]:
-                        y_out = 1
-                    else: 
-                        y_out = y
-                else:
-                    if np.argmax(y) in [0, 2]:
-                        y_out = 1
-                    else:
-                        y_out = y
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
             else:
-                y_out = invert_label(y, soften=soften)
+                soften = self.task_config['label_type'] == 'soft'
+                if self.task_config['task_name'] == 'similarity':
+                    # hard code for now... :(
+                    # 0 = dissimilar, 1 = similar
+                    if isinstance(y, int):
+                        if y == 0:
+                            y_out = 0
+                        else:
+                            y_out = invert_label(y, soften=soften)
+                    else:
+                        if np.argmax(y) == 0:
+                            y_out = 0
+                        else:
+                            y_out = smooth_label(y, factor=0.25)
+                elif self.task_config['task_name'] == 'entailment':
+                    # hard coded for now... :(
+                    # 0 = entailed, 1 = neutral, 2 = contradiction
+                    if isinstance(y, int):
+                        if y in [0, 2]:
+                            y_out = 1
+                        else: 
+                            y_out = y
+                    else:
+                        if np.argmax(y) in [0, 2]:
+                            y_out = 1
+                        else:
+                            y_out = y
+                else:
+                    y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
             return X_out, y_out, metadata

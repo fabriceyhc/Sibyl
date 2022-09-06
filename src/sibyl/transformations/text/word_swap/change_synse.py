@@ -19,7 +19,7 @@ class ChangeSynse(AbstractTransformation):
     with synses from wordnet. Also supports part-of-speech (pos)
     tagging via spaCy to get more natural replacements. 
     """
-    def __init__(self, synse='synonym', num_to_replace=-1, return_metadata=False):
+    def __init__(self, synse='synonym', num_to_replace=-1, task_name=None, return_metadata=False):
         """
         Initializes the transformation and provides an
         opporunity to supply a configuration if needed
@@ -39,7 +39,7 @@ class ChangeSynse(AbstractTransformation):
             whether a transform was successfully
             applied or not
         """
-        super().__init__() 
+        super().__init__(task_name) 
         self.synse = synse
         self.synses = {
             'synonym' : all_possible_synonyms,
@@ -68,6 +68,7 @@ class ChangeSynse(AbstractTransformation):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
     
     def __call__(self, in_text):
         """Replaces words with synses
@@ -128,34 +129,36 @@ class ChangeSynse(AbstractTransformation):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            soften = self.task_config['label_type'] == 'soft'
-            if self.task_config['task_name'] == 'grammaticality':
-                # hard code for now... :(
-                # 0 = ungrammatical, 1 = grammatical
-                if isinstance(y, int):
-                    if y == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
-                else:
-                    if np.argmax(y) == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
             else:
-               y_out = invert_label(y, soften=soften)
+                soften = self.task_config['label_type'] == 'soft'
+                if self.task_config['task_name'] == 'grammaticality':
+                    # hard code for now... :(
+                    # 0 = ungrammatical, 1 = grammatical
+                    if isinstance(y, int):
+                        if y == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                    else:
+                        if np.argmax(y) == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                else:
+                    y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
             return X_out, y_out, metadata
         return X_out, y_out
 
 class ChangeSynonym(ChangeSynse):
-    def __init__(self, num_to_replace=-1, return_metadata=False):
-        super().__init__(synse='synonym', num_to_replace=num_to_replace, return_metadata=False)
+    def __init__(self, num_to_replace=-1, task_name=None, return_metadata=False):
+        super().__init__(synse='synonym', num_to_replace=num_to_replace, task_name=task_name, return_metadata=False)
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -168,6 +171,7 @@ class ChangeSynonym(ChangeSynse):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
 
     def __call__(self, in_text):
         return super().__call__(in_text)
@@ -198,34 +202,36 @@ class ChangeSynonym(ChangeSynse):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            soften = self.task_config['label_type'] == 'soft'
-            if self.task_config['task_name'] == 'grammaticality':
-                # hard code for now... :(
-                # 0 = ungrammatical, 1 = grammatical
-                if isinstance(y, int):
-                    if y == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
-                else:
-                    if np.argmax(y) == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
             else:
-               y_out = invert_label(y, soften=soften)
+                soften = self.task_config['label_type'] == 'soft'
+                if self.task_config['task_name'] == 'grammaticality':
+                    # hard code for now... :(
+                    # 0 = ungrammatical, 1 = grammatical
+                    if isinstance(y, int):
+                        if y == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                    else:
+                        if np.argmax(y) == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                else:
+                    y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
             return X_out, y_out, metadata
         return X_out, y_out
 
 class ChangeAntonym(ChangeSynse):
-    def __init__(self, num_to_replace=-1, return_metadata=False):
-        super().__init__(synse='antonym', num_to_replace=num_to_replace, return_metadata=False)
+    def __init__(self, num_to_replace=-1, task_name=None, return_metadata=False):
+        super().__init__(synse='antonym', num_to_replace=num_to_replace, task_name=task_name, return_metadata=False)
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(tran_type='SIB'),
@@ -238,6 +244,7 @@ class ChangeAntonym(ChangeSynse):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
 
     def __call__(self, in_text):
         return super().__call__(in_text)
@@ -268,36 +275,38 @@ class ChangeAntonym(ChangeSynse):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            soften = self.task_config['label_type'] == 'soft'
-            if self.task_config['task_name'] == 'similarity':
-                # hard code for now... :(
-                # 0 = dissimilar, 1 = similar
-                if isinstance(y, int):
-                    if y == 0:
-                        y_out = 0
-                    else:
-                        y_out = invert_label(y, soften=soften)
-                else:
-                    if np.argmax(y) == 0:
-                        y_out = 0
-                    else:
-                        y_out = smooth_label(y, factor=0.25)
-            elif self.task_config['task_name'] == 'similarity':
-                y_out = smooth_label(y, factor=0.5)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
             else:
-               y_out = invert_label(y, soften=soften)
+                soften = self.task_config['label_type'] == 'soft'
+                if self.task_config['task_name'] == 'similarity':
+                    # hard code for now... :(
+                    # 0 = dissimilar, 1 = similar
+                    if isinstance(y, int):
+                        if y == 0:
+                            y_out = 0
+                        else:
+                            y_out = invert_label(y, soften=soften)
+                    else:
+                        if np.argmax(y) == 0:
+                            y_out = 0
+                        else:
+                            y_out = smooth_label(y, factor=0.25)
+                elif self.task_config['task_name'] == 'sentiment':
+                    y_out = smooth_label(y, factor=0.5)
+                else:
+                    y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
             return X_out, y_out, metadata
         return X_out, y_out
 
 class ChangeHyponym(ChangeSynse):
-    def __init__(self, num_to_replace=-1, return_metadata=False):
-        super().__init__(synse='hyponym', num_to_replace=num_to_replace, return_metadata=False)
+    def __init__(self, num_to_replace=-1, task_name=None, return_metadata=False):
+        super().__init__(synse='hyponym', num_to_replace=num_to_replace, task_name=task_name, return_metadata=False)
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -310,6 +319,7 @@ class ChangeHyponym(ChangeSynse):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
 
     def __call__(self, in_text):
         return super().__call__(in_text)
@@ -340,36 +350,38 @@ class ChangeHyponym(ChangeSynse):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            soften = self.task_config['label_type'] == 'soft'
-            if self.task_config['task_name'] == 'grammaticality':
-                # hard code for now... :(
-                # 0 = ungrammatical, 1 = grammatical
-                if isinstance(y, int):
-                    if y == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
-                else:
-                    if np.argmax(y) == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
-            elif self.task_config['task_name'] == 'similarity':
-                y_out = smooth_label(y, factor=0.25)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
             else:
-               y_out = invert_label(y, soften=soften)
+                soften = self.task_config['label_type'] == 'soft'
+                if self.task_config['task_name'] == 'grammaticality':
+                    # hard code for now... :(
+                    # 0 = ungrammatical, 1 = grammatical
+                    if isinstance(y, int):
+                        if y == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                    else:
+                        if np.argmax(y) == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                elif self.task_config['task_name'] == 'similarity':
+                    y_out = smooth_label(y, factor=0.25)
+                else:
+                    y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
             return X_out, y_out, metadata
         return X_out, y_out
 
 class ChangeHypernym(ChangeSynse):
-    def __init__(self, num_to_replace=-1, return_metadata=False):
-        super().__init__(synse='hypernym', num_to_replace=num_to_replace, return_metadata=False)
+    def __init__(self, num_to_replace=-1, task_name=None, return_metadata=False):
+        super().__init__(synse='hypernym', num_to_replace=num_to_replace, task_name=task_name, return_metadata=False)
         self.return_metadata = return_metadata
         self.task_configs = [
             SentimentAnalysis(),
@@ -382,6 +394,7 @@ class ChangeHypernym(ChangeSynse):
             Entailment(input_idx=[0,1], tran_type='INV'),
             Entailment(input_idx=[1,1], tran_type='INV'),
         ]
+        self.task_config = self.match_task(task_name)
 
     def __call__(self, in_text):
         return super().__call__(in_text)
@@ -412,28 +425,30 @@ class ChangeHypernym(ChangeSynse):
         metadata = {'change': X != X_out}
         X_out = X_out[0] if len(X_out) == 1 else X_out
 
-        # transform y
-        if self.task_config['tran_type'] == 'INV':
-            y_out = y
-        else:
-            soften = self.task_config['label_type'] == 'soft'
-            if self.task_config['task_name'] == 'grammaticality':
-                # hard code for now... :(
-                # 0 = ungrammatical, 1 = grammatical
-                if isinstance(y, int):
-                    if y == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
-                else:
-                    if np.argmax(y) == 0:
-                        y_out = y
-                    else: 
-                        y_out = invert_label(y, soften=soften)
-            elif self.task_config['task_name'] == 'similarity':
-                y_out = smooth_label(y, factor=0.25)
+        y_out = y
+        if metadata['change']:
+            # transform y
+            if self.task_config['tran_type'] == 'INV':
+                y_out = y
             else:
-               y_out = invert_label(y, soften=soften)
+                soften = self.task_config['label_type'] == 'soft'
+                if self.task_config['task_name'] == 'grammaticality':
+                    # hard code for now... :(
+                    # 0 = ungrammatical, 1 = grammatical
+                    if isinstance(y, int):
+                        if y == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                    else:
+                        if np.argmax(y) == 0:
+                            y_out = y
+                        else: 
+                            y_out = invert_label(y, soften=soften)
+                elif self.task_config['task_name'] == 'similarity':
+                    y_out = smooth_label(y, factor=0.25)
+                else:
+                    y_out = invert_label(y, soften=soften)
         
         if self.return_metadata: 
             return X_out, y_out, metadata
